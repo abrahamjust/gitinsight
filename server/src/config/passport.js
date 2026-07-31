@@ -10,7 +10,7 @@ passport.use(
         },
         async (email, password, done) => {
             try {
-                const user = await userRepository.getUserByEmail(email);
+                const user = await userRepository.findByEmail(email);
                 if (!user) {
                     return done(null, false, { message: "Incorrect username" });
                 }
@@ -33,7 +33,7 @@ passport.serializeUser((user, done) => {
 
 passport.deserializeUser(async (id, done) => {
     try {
-        const user = await userRepository.getUserById(id);
+        const user = await userRepository.findById(id);
         done(null, user);
     } catch(error) {
         done(error);

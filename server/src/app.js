@@ -5,6 +5,7 @@ import "./config/passport.js";
 // import connectMongo from "./config/mongo.js";
 // import connectRedis from "./config/redis.js";
 import authRouter from "./routes/authRoutes.js";
+import dashboardRouter from "./routes/dashboardRoutes.js";
 // import userRoutes from "./routes/user.js";
 // import repoRoutes from "./routes/repo.js";
 import { env } from "./config/env.js";
@@ -25,5 +26,6 @@ app.use(passport.session());
 
 // authentication routes
 app.use("/auth", authRouter);
+app.use(dashboardRouter);
 
 export default app;
