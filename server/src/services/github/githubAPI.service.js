@@ -1,0 +1,78 @@
+import axios from "axios";
+import {env} from "../../config/env.js";
+
+export {
+    getRepository
+}
+
+function extractRepositoryInfo(repositoryUrl) {
+    const url = new URL(repositoryUrl);
+    
+    if (url.hostname !== "github.com") {
+        throw new Error("Invalid Github repository URL");
+    }
+
+    const pathParts = url.pathname.split("/").filter(part => part.length > 0);
+
+    if (pathParts.length < 2) {
+        throw new Error("Invalid Github repository URL");
+    }
+
+    const owner = pathParts[0];
+    const repo = pathParts[1];
+
+    return {
+        owner, repo,
+    }
+}
+
+async function getRepository(repositoryUrl) {
+    try {
+        const { owner, repo } = extractRepositoryInfo(repositoryUrl);
+
+        const response = await axios.get(
+            `https://api.github.com/repos/${owner}/${repo}`,
+            {
+                headers: {
+                    Authorization: `Bearer ${env.GITHUB_TOKEN}`,
+                    Accept: "application/vnd.github+json",
+                },
+            }
+        );
+
+        const data = response.data;
+
+        return {
+            githubId: data.id,
+            owner: data.owner.login,
+            name: data.name,
+            fullName: data.full_name,
+            description: data.description,
+            url: data.html_url,
+            defaultBranch: data.default_branch,
+            visibility: data.visibility,
+            language: data.language,
+            topics: data.topics,
+            stars: data.stargazers_count,
+            forks: data.forks_count,
+            watchers: data.subscribers_count,
+            openIssues: data.open_issues_count,
+            createdAtGithub: data.created_at,
+            updatedAtGithub: data.updated_at,
+            pushedAt: data.pushed_at,
+            ownerAvatar: data.owner.avatar_url,
+        };
+
+    } catch (error) {
+
+        if (error.response?.status === 404) {
+            throw new Error("Repository not found");
+        }
+
+        if (error.response?.status === 403) {
+            throw new Error("GitHub API rate limit exceeded");
+        }
+
+        throw error;
+    }
+}

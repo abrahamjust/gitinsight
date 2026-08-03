@@ -7,4 +7,5 @@ export const env = {
     MONGODB_URI: process.env.MONGODB_URI,
     REDIS_URL: process.env.REDIS_URL,
     SESSION_SECRET: process.env.SESSION_SECRET,
+    GITHUB_TOKEN: process.env.GITHUB_TOKEN,
 };
