@@ -7,6 +7,7 @@ export {
     updateByGithubId,
     deleteByGithubId,
     findByFullName,
+    findByIdAndUserId
 };
 
 async function create(repositoryData) {
@@ -38,4 +39,11 @@ async function deleteByGithubId(githubId) {
 
 async function findByFullName(fullName) {
     return await Repository.findOne({ fullName }).lean();
+}
+
+async function findByIdAndUserId(id, userId) {
+    return await Repository.findOne({
+        _id: id,
+        userId: userId
+    });
 }
