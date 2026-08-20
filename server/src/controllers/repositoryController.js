@@ -4,7 +4,8 @@ import * as repositoryRepository from "../repositories/repositoryRepository.js";
 export { 
     handleImportRepository, 
     getRepositoryData,
-    getRepositoryById
+    getRepositoryById,
+    deleteRepositoryById
 };
 
 async function handleImportRepository (req, res) {
@@ -100,3 +101,32 @@ async function getRepositoryById (req, res) {
     }
 }
 
+async function deleteRepositoryById (req, res) {
+    try {
+        if (!req.user) {
+            return res.status(401).json({
+                message: "Authentication required"
+            });
+        }
+
+    const userId = req.user._id;
+    const repoId = req.params.id;
+    const deletedRepo = await repositoryRepository.deleteByIdAndUserId(repoId, userId);
+    
+    if (!deletedRepo) {
+        return res.status(404).json({
+            message: "Repository was not present",
+        });
+    }
+
+    return res.status(200).json({
+        message: "Repository successfully deleted by repo id",
+        deletedRepo,
+    });
+    } catch (error) {
+        console.error(error);
+        return res.status(500).json({
+            message: "Failed to delete repository",
+        });
+    }
+}
