@@ -8,7 +8,8 @@ export {
     deleteByGithubId,
     findByFullName,
     findByIdAndUserId,
-    deleteByIdAndUserId
+    deleteByIdAndUserId,
+    updateByIdAndUserId
 };
 
 async function create(repositoryData) {
@@ -54,4 +55,18 @@ async function deleteByIdAndUserId(id, userId) {
         _id: id,
         userId: userId
     })
+}
+
+async function updateByIdAndUserId(id, userId, updateData) {
+    return await Repository.findOneAndUpdate(
+        {
+            _id: id,
+            userId: userId,
+        },
+        updateData,
+        {
+            new: true,
+            runValidators: true,
+        }
+    );
 }

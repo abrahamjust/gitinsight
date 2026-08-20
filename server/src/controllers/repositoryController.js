@@ -5,7 +5,8 @@ export {
     handleImportRepository, 
     getRepositoryData,
     getRepositoryById,
-    deleteRepositoryById
+    deleteRepositoryById,
+    updateRepositoryById
 };
 
 async function handleImportRepository (req, res) {
@@ -105,7 +106,7 @@ async function deleteRepositoryById (req, res) {
     try {
         if (!req.user) {
             return res.status(401).json({
-                message: "Authentication required"
+                message: "Authentication required",
             });
         }
 
@@ -127,6 +128,55 @@ async function deleteRepositoryById (req, res) {
         console.error(error);
         return res.status(500).json({
             message: "Failed to delete repository",
+        });
+    }
+}
+
+async function updateRepositoryById (req, res) {
+    try {
+        if (!req.user) {
+            return res.status(401).json({
+                message: "Authentication required",
+            })
+        }
+
+        const userId = req.user._id;
+        const repoId = req.params.id;
+
+        const existingRepository = await repositoryRepository.findByIdAndUserId(
+            repoId,
+            userId
+        );
+
+        if (!existingRepository) {
+            return res.status(404).json({
+                message: "Repository not found"
+            });
+        }
+
+        const repositoryData = await githubService.getRepository(
+            existingRepository.url
+        );
+
+        const updatedRepository = await repositoryRepository.updateByIdAndUserId(
+            repoId,
+            userId,
+            {
+                ...repositoryData,
+                userId,
+                lastSynced: new Date(),
+            }
+        );
+        
+        return res.status(200).json({
+            message: "Repository synchronized successfully",
+            repository: updatedRepository,
+        });
+    } catch (error) {
+        console.error(error);
+        
+        return res.status(500).json({
+            message: "Failed to synchronize repository",
         });
     }
 }
