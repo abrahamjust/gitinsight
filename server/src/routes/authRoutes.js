@@ -13,6 +13,13 @@ authRouter.get("/signup", (req, res) => {
   res.send("Signup page");
 }); 
 
+authRouter.get("/me", (req, res) => {
+    res.json({
+        authenticated: req.isAuthenticated(),
+        user: req.user || null,
+    });
+});
+
 
 authRouter.post("/login", handleLogin);
 
