@@ -2,7 +2,8 @@ import axios from "axios";
 import {env} from "../../config/env.js";
 
 export {
-    getRepository
+    getRepository,
+    getCommits,
 }
 
 function extractRepositoryInfo(repositoryUrl) {
@@ -76,3 +77,48 @@ async function getRepository(repositoryUrl) {
         throw error;
     }
 }
+
+async function getCommits(repositoryUrl, page=1, perPage=100) {
+    const { owner, repo } = extractRepositoryInfo(repositoryUrl);
+
+    const response = await axios.get(
+        `https://api.github.com/repos/${owner}/${repo}/commits`,
+        {
+            params: {
+                page,
+                per_page: perPage,
+            },
+            headers: {
+                Authorization: `Bearer ${env.GITHUB_TOKEN}`,
+                Accept: "application/vnd.github+json",
+            },
+        }
+    );
+
+    return response.data.map(commit => ({
+        sha: commit.sha,
+        message: commit.commit.message,
+        author: {
+            login: commit.author?.login ?? null,
+            name: commit.commit.author?.name ?? null,
+            email: commit.commit.author?.email ?? null,
+            avatarUrl: commit.author?.avatar_url ?? null,
+        },
+        committedAt: commit.commit.author?.date,
+        url: commit.html_url,
+    }));
+}
+
+// const commits = await getCommits(
+//     "https://github.com/abrahamjust/InventoryManagement"
+// );
+
+// console.log(commits);
+
+const commits2 = await getCommits(
+    "https://github.com/abrahamjust/InventoryManagement",
+    1,
+    5
+);
+
+console.log(commits2);
