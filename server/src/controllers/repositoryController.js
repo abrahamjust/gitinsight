@@ -1,12 +1,14 @@
 import * as githubService from "../services/github/githubAPI.service.js";
 import * as repositoryRepository from "../repositories/repositoryRepository.js";
+import * as commitRepository from "../repositories/commitRepository.js";
 
 export { 
     handleImportRepository, 
     getRepositoryData,
     getRepositoryById,
     deleteRepositoryById,
-    updateRepositoryById
+    updateRepositoryById,
+    importCommits,
 };
 
 async function handleImportRepository (req, res) {
@@ -137,7 +139,7 @@ async function updateRepositoryById (req, res) {
         if (!req.user) {
             return res.status(401).json({
                 message: "Authentication required",
-            })
+            });
         }
 
         const userId = req.user._id;
@@ -178,5 +180,51 @@ async function updateRepositoryById (req, res) {
         return res.status(500).json({
             message: "Failed to synchronize repository",
         });
+    }
+}
+
+async function importCommits (req, res) {
+    try {
+        if (!req.user) {
+            return res.status(401).json({
+                message: "Authentication required",
+            });
+        }
+
+        const userId = req.user._id;
+        const repoId = req.params.id;
+
+        const repository = await repositoryRepository.findByIdAndUserId(
+            repoId,
+            userId
+        );
+
+        if (!repository) {
+            return res.status(404).json({
+                message: "Repository not found"
+            });
+        }
+        
+        const repoUrl = repository.url;
+        const commitData = await githubService.getCommits(repoUrl);
+
+        const commits = commitData.map(commit => ({
+            ...commit,
+            repositoryId: repository._id,
+        }));
+
+        await commitRepository.createMany(commits);
+        
+        return res.status(201).json({
+            message: "Commits imported successfully",
+            commits,
+        });
+
+    } catch (error) {
+        console.error(error);
+
+        return res.status(500).json({
+            message: "Failed to import commits"
+        })
     }
 }

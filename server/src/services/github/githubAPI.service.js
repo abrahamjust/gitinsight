@@ -79,46 +79,44 @@ async function getRepository(repositoryUrl) {
 }
 
 async function getCommits(repositoryUrl, page=1, perPage=100) {
-    const { owner, repo } = extractRepositoryInfo(repositoryUrl);
+    try {
+        const { owner, repo } = extractRepositoryInfo(repositoryUrl);
 
-    const response = await axios.get(
-        `https://api.github.com/repos/${owner}/${repo}/commits`,
-        {
-            params: {
-                page,
-                per_page: perPage,
+        const response = await axios.get(
+            `https://api.github.com/repos/${owner}/${repo}/commits`,
+            {
+                params: {
+                    page,
+                    per_page: perPage,
+                },
+                headers: {
+                    Authorization: `Bearer ${env.GITHUB_TOKEN}`,
+                    Accept: "application/vnd.github+json",
+                },
+            }
+        );
+
+        return response.data.map(commit => ({
+            sha: commit.sha,
+            message: commit.commit.message,
+            author: {
+                login: commit.author?.login ?? null,
+                name: commit.commit.author?.name ?? null,
+                email: commit.commit.author?.email ?? null,
+                avatarUrl: commit.author?.avatar_url ?? null,
             },
-            headers: {
-                Authorization: `Bearer ${env.GITHUB_TOKEN}`,
-                Accept: "application/vnd.github+json",
-            },
+            committedAt: commit.commit.author?.date,
+            url: commit.html_url,
+        }));
+    } catch (error) {
+        if (error.response?.status === 404) {
+            throw new Error("Can't import commits");
         }
-    );
 
-    return response.data.map(commit => ({
-        sha: commit.sha,
-        message: commit.commit.message,
-        author: {
-            login: commit.author?.login ?? null,
-            name: commit.commit.author?.name ?? null,
-            email: commit.commit.author?.email ?? null,
-            avatarUrl: commit.author?.avatar_url ?? null,
-        },
-        committedAt: commit.commit.author?.date,
-        url: commit.html_url,
-    }));
+        if (error.response?.status === 403) {
+            throw new Error("GitHub API rate limit exceeded");
+        }
+
+        throw error;
+    }
 }
-
-// const commits = await getCommits(
-//     "https://github.com/abrahamjust/InventoryManagement"
-// );
-
-// console.log(commits);
-
-const commits2 = await getCommits(
-    "https://github.com/abrahamjust/InventoryManagement",
-    1,
-    5
-);
-
-console.log(commits2);
