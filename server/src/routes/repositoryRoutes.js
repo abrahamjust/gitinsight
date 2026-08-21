@@ -6,6 +6,7 @@ import {
     deleteRepositoryById,
     updateRepositoryById,
     importCommits,
+    importPullRequests,
 } from "../controllers/repositoryController.js";
 
 
@@ -17,5 +18,6 @@ repositoryRouter.get("/:id", getRepositoryById);
 repositoryRouter.delete("/:id", deleteRepositoryById);
 repositoryRouter.patch("/:id/sync", updateRepositoryById);
 repositoryRouter.post("/:id/commits/import", importCommits);
+repositoryRouter.post("/:id/pull-requests/import", importPullRequests);
 
 export default repositoryRouter;

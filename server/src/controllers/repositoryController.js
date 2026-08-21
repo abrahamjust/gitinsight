@@ -1,6 +1,7 @@
 import * as githubService from "../services/github/githubAPI.service.js";
 import * as repositoryRepository from "../repositories/repositoryRepository.js";
 import * as commitRepository from "../repositories/commitRepository.js";
+import * as pullRequestRepository from "../repositories/pullRequestRepository.js";
 
 export { 
     handleImportRepository, 
@@ -9,6 +10,7 @@ export {
     deleteRepositoryById,
     updateRepositoryById,
     importCommits,
+    importPullRequests,
 };
 
 async function handleImportRepository (req, res) {
@@ -234,6 +236,64 @@ async function importCommits (req, res) {
 
         return res.status(500).json({
             message: "Failed to import commits"
+        })
+    }
+}
+
+async function importPullRequests (req, res) {
+    try {
+        if (!req.user) {
+            return res.status(401).json({
+                message: "Authentication required",
+            });
+        }
+
+        const userId = req.user._id;
+        const repoId = req.params.id;
+
+        const repository = await repositoryRepository.findByIdAndUserId(
+            repoId,
+            userId
+        );
+
+        if (!repository) {
+            return res.status(404).json({
+                message: "Repository not found"
+            });
+        }
+        
+        const repoUrl = repository.url;
+        const prData = await githubService.getPullRequests(repoUrl);
+
+        const pullRequests = prData.map(pr => ({
+            ...pr,
+            repositoryId: repository._id,
+        }));
+
+        const existingGithubIds = await pullRequestRepository.findExistingGithubIds(
+            repository._id,
+            pullRequests.map(pr => pr.githubId)
+        );
+
+        const newPullRequests = pullRequests.filter(
+            pr => !existingGithubIds.has(pr.githubId)
+        );
+
+        
+        if (newPullRequests.length > 0) {
+            await pullRequestRepository.createMany(newPullRequests);
+        }
+
+        return res.status(201).json({
+            message: "PRs imported successfully",
+            imported: newPullRequests.length,
+            skipped: pullRequests.length - newPullRequests.length,
+        });
+    } catch (error) {
+        console.error(error);
+
+        return res.status(500).json({
+            message: "Failed to import PRs"
         })
     }
 }

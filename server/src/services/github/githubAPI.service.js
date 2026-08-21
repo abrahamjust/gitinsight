@@ -1,9 +1,11 @@
-import axios from "axios";
+import axios, { all } from "axios";
 import {env} from "../../config/env.js";
+import pullRequest from "../../models/pullRequest.js";
 
 export {
     getRepository,
     getCommits,
+    getPullRequests,
 }
 
 function extractRepositoryInfo(repositoryUrl) {
@@ -142,11 +144,78 @@ async function getCommits(repositoryUrl, perPage=100) {
     }
 }
 
-const commits = await getCommits(
-    "https://github.com/abrahamjust/InventoryManagement",
-    5
-);
+async function getPullRequests(repositoryUrl, perPage = 100) {
+    try {
+        const { owner, repo } = extractRepositoryInfo(repositoryUrl);
 
-console.log("Total commits:", commits.length);
-console.log(commits[0]);
-console.log(commits[commits.length - 1]);
+        let page = 1;
+        let allPullRequests = [];
+
+        while (true) {
+            const response = await axios.get(
+                `https://api.github.com/repos/${owner}/${repo}/pulls`,
+                {
+                    params: {
+                        state: "all",
+                        page,
+                        per_page: perPage,
+                    },
+                    headers: {
+                        Authorization: `Bearer ${env.GITHUB_TOKEN}`,
+                        Accept: "application/vnd.github+json",
+                    },
+                }
+            );
+
+            const pullRequests = response.data;
+
+            if (pullRequests.length == 0) {
+                break;
+            }
+
+            allPullRequests.push(
+                ...pullRequests.map(pullRequest => ({
+                    githubId: pullRequest.id,
+                    number: pullRequest.number,
+                    title: pullRequest.title,
+                    body: pullRequest.body ?? null,
+
+                    state: pullRequest.state,
+
+                    author: {
+                        login: pullRequest.user?.login ?? null,
+                        avatarUrl: pullRequest.user?.avatar_url ?? null,
+                    },
+
+                    createdAtGithub: pullRequest.created_at,
+                    updatedAtGithub: pullRequest.updated_at,
+                    closedAt: pullRequest.closed_at,
+                    mergedAt: pullRequest.merged_at,
+
+                    url: pullRequest.html_url,
+
+                    additions: pullRequest.additions ?? 0,
+                    deletions: pullRequest.deletions ?? 0,
+                    changedFiles: pullRequest.changed_files ?? 0,
+                }))
+            );
+
+            if (pullRequests.length < perPage) {
+                break;
+            }
+
+            page++;
+        }
+        return allPullRequests;
+    } catch (error) {
+        if (error.response?.status === 404) {
+            throw new Error("Can't import PRs");
+        }
+
+        if (error.response?.status === 403) {
+            throw new Error("GitHub API rate limit exceeded");
+        }
+
+        throw error;
+    }
+}
