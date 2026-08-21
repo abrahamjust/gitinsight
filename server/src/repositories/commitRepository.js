@@ -5,6 +5,7 @@ export {
     findBySha,
     findByRepositoryId,
     createMany,
+    findExistingShas,
 };
 
 async function create(commitData) {
@@ -28,4 +29,19 @@ async function createMany(commitData) {
     return await Commit.insertMany(commitData, {
         ordered: false,
     });
+}
+
+async function findExistingShas(repositoryId, shas) {
+    const commits = await Commit.find(
+        {
+            repositoryId,
+            sha: { $in: shas },
+        },
+        {
+            sha: 1,
+            _id: 0,
+        }
+    ).lean();
+
+    return new Set(commits.map(commit => commit.sha));
 }

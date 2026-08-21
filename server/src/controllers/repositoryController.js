@@ -213,11 +213,20 @@ async function importCommits (req, res) {
             repositoryId: repository._id,
         }));
 
-        await commitRepository.createMany(commits);
+        const existingShas = await commitRepository.findExistingShas(repository._id, commits.map(commit => commit.sha));
+
+        const newCommits = commits.filter(
+            commit => !existingShas.has(commit.sha)
+        );
+
+        if (newCommits.length > 0) {
+            await commitRepository.createMany(newCommits);
+        }
         
         return res.status(201).json({
             message: "Commits imported successfully",
-            commits,
+            imported: newCommits.length,
+            skipped: commits.length - newCommits.length,
         });
 
     } catch (error) {

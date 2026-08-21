@@ -78,36 +78,57 @@ async function getRepository(repositoryUrl) {
     }
 }
 
-async function getCommits(repositoryUrl, page=1, perPage=100) {
+async function getCommits(repositoryUrl, perPage=100) {
     try {
         const { owner, repo } = extractRepositoryInfo(repositoryUrl);
 
-        const response = await axios.get(
-            `https://api.github.com/repos/${owner}/${repo}/commits`,
-            {
-                params: {
-                    page,
-                    per_page: perPage,
-                },
-                headers: {
-                    Authorization: `Bearer ${env.GITHUB_TOKEN}`,
-                    Accept: "application/vnd.github+json",
-                },
-            }
-        );
+        let page = 1;
+        let allCommits = [];
 
-        return response.data.map(commit => ({
-            sha: commit.sha,
-            message: commit.commit.message,
-            author: {
-                login: commit.author?.login ?? null,
-                name: commit.commit.author?.name ?? null,
-                email: commit.commit.author?.email ?? null,
-                avatarUrl: commit.author?.avatar_url ?? null,
-            },
-            committedAt: commit.commit.author?.date,
-            url: commit.html_url,
-        }));
+        while (true) {
+            const response = await axios.get(
+                `https://api.github.com/repos/${owner}/${repo}/commits`,
+                {
+                    params: {
+                        page,
+                        per_page: perPage,
+                    },
+                    headers: {
+                        Authorization: `Bearer ${env.GITHUB_TOKEN}`,
+                        Accept: "application/vnd.github+json",
+                    },
+                }
+            );
+
+            const commits = response.data;
+
+            if (commits.length == 0) {
+                break;
+            }
+
+            allCommits.push(
+                ...commits.map(commit => ({
+                    sha: commit.sha,
+                    message: commit.commit.message,
+                    author: {
+                        login: commit.author?.login ?? null,
+                        name: commit.commit.author?.name ?? null,
+                        email: commit.commit.author?.email ?? null,
+                        avatarUrl: commit.author?.avatar_url ?? null,
+                    },
+                    committedAt: commit.commit.author?.date,
+                    url: commit.html_url,
+                }))
+            );
+
+            if (commits.length < perPage) {
+                break;
+            }
+
+            page++;
+        }
+
+        return allCommits;
     } catch (error) {
         if (error.response?.status === 404) {
             throw new Error("Can't import commits");
@@ -120,3 +141,12 @@ async function getCommits(repositoryUrl, page=1, perPage=100) {
         throw error;
     }
 }
+
+const commits = await getCommits(
+    "https://github.com/abrahamjust/InventoryManagement",
+    5
+);
+
+console.log("Total commits:", commits.length);
+console.log(commits[0]);
+console.log(commits[commits.length - 1]);
