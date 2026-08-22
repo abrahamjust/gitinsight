@@ -2,6 +2,7 @@ import * as githubService from "../services/github/githubAPI.service.js";
 import * as repositoryRepository from "../repositories/repositoryRepository.js";
 import * as commitRepository from "../repositories/commitRepository.js";
 import * as pullRequestRepository from "../repositories/pullRequestRepository.js";
+import * as issueRepository from "../repositories/issueRepository.js";
 
 export { 
     handleImportRepository, 
@@ -11,6 +12,7 @@ export {
     updateRepositoryById,
     importCommits,
     importPullRequests,
+    importIssues,
 };
 
 async function handleImportRepository (req, res) {
@@ -294,6 +296,64 @@ async function importPullRequests (req, res) {
 
         return res.status(500).json({
             message: "Failed to import PRs"
+        })
+    }
+}
+
+async function importIssues (req, res) {
+    try {
+        if (!req.user) {
+            return res.status(401).json({
+                message: "Authentication required",
+            });
+        }
+        const userId = req.user._id;
+        const repoId = req.params.id;
+
+        const repository =
+            await repositoryRepository.findByIdAndUserId(
+                repoId,
+                userId
+            );
+
+        if (!repository) {
+            return res.status(404).json({
+                message: "Repository not found",
+            });
+        }
+
+        const issueData =
+            await githubService.getIssues(repository.url);
+
+        const issues = issueData.map(issue => ({
+            ...issue,
+            repositoryId: repository._id,
+        }));
+
+        const existingGithubIds =
+            await issueRepository.findExistingGithubIds(
+                repository._id,
+                issues.map(issue => issue.githubId)
+            );
+
+        const newIssues = issues.filter(
+            issue => !existingGithubIds.has(issue.githubId)
+        );
+
+        if (newIssues.length > 0) {
+            await issueRepository.createMany(newIssues);
+        }
+
+        return res.status(201).json({
+            message: "Issues imported successfully",
+            imported: newIssues.length,
+            skipped: issues.length - newIssues.length,
+        });
+    } catch (error) {
+        console.error(error);
+
+        return res.status(500).json({
+            message: "Failed to import issues"
         })
     }
 }

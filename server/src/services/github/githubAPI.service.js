@@ -6,6 +6,7 @@ export {
     getRepository,
     getCommits,
     getPullRequests,
+    getIssues,
 }
 
 function extractRepositoryInfo(repositoryUrl) {
@@ -210,6 +211,94 @@ async function getPullRequests(repositoryUrl, perPage = 100) {
     } catch (error) {
         if (error.response?.status === 404) {
             throw new Error("Can't import PRs");
+        }
+
+        if (error.response?.status === 403) {
+            throw new Error("GitHub API rate limit exceeded");
+        }
+
+        throw error;
+    }
+}
+
+async function getIssues(repositoryUrl, perPage = 100) {
+    try {
+        const { owner, repo } = extractRepositoryInfo(repositoryUrl);
+
+        let page = 1;
+        let allIssues = [];
+
+        while (true) {
+            const response = await axios.get(
+                `https://api.github.com/repos/${owner}/${repo}/issues`,
+                {
+                    params: {
+                        state: "all",
+                        page,
+                        per_page: perPage,
+                    },
+                    headers: {
+                        Authorization: `Bearer ${env.GITHUB_TOKEN}`,
+                        Accept: "application/vnd.github+json",
+                    },
+                }
+            );
+
+            const issues = response.data;
+
+            if (issues.length === 0) {
+                break;
+            }
+
+            // filter the pull requests, we get those in issues too.
+            const actualIssues = issues.filter(
+                issue => !issue.pull_request
+            );
+
+            allIssues.push(
+                ...actualIssues.map(issue => ({
+                    githubId: issue.id,
+
+                    number: issue.number,
+
+                    title: issue.title,
+
+                    body: issue.body ?? null,
+
+                    state: issue.state,
+
+                    author: {
+                        login: issue.user?.login ?? null,
+                        avatarUrl: issue.user?.avatar_url ?? null,
+                    },
+
+                    labels: issue.labels.map(label => ({
+                        name: label.name,
+                    })),
+
+                    comments: issue.comments ?? 0,
+
+                    createdAtGithub: issue.created_at,
+
+                    updatedAtGithub: issue.updated_at,
+
+                    closedAt: issue.closed_at,
+
+                    url: issue.html_url,
+                }))
+            );
+
+            if (issues.length < perPage) {
+                break;
+            }
+
+            page++;
+        }
+
+        return allIssues;
+    } catch (error) {
+        if (error.response?.status === 404) {
+            throw new Error("Can't import issues");
         }
 
         if (error.response?.status === 403) {
