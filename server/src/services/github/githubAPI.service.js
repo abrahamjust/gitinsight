@@ -1,12 +1,12 @@
 import axios, { all } from "axios";
 import {env} from "../../config/env.js";
-import pullRequest from "../../models/pullRequest.js";
 
 export {
     getRepository,
     getCommits,
     getPullRequests,
     getIssues,
+    getContributors,
 }
 
 function extractRepositoryInfo(repositoryUrl) {
@@ -296,6 +296,70 @@ async function getIssues(repositoryUrl, perPage = 100) {
         }
 
         return allIssues;
+    } catch (error) {
+        if (error.response?.status === 404) {
+            throw new Error("Can't import issues");
+        }
+
+        if (error.response?.status === 403) {
+            throw new Error("GitHub API rate limit exceeded");
+        }
+
+        throw error;
+    }
+}
+
+async function getContributors(repositoryUrl, perPage = 100) {
+    try {
+        const { owner, repo } = extractRepositoryInfo(repositoryUrl);
+
+        let page = 1;
+        let allContributors = [];
+
+        while (true) {
+            const response = await axios.get(
+                `https://api.github.com/repos/${owner}/${repo}/contributors`,
+                {
+                    params: {
+                        page,
+                        per_page: perPage,
+                    },
+                    headers: {
+                        Authorization: `Bearer ${env.GITHUB_TOKEN}`,
+                        Accept: "application/vnd.github+json",
+                    },
+                }
+            );
+
+            const contributors = response.data;
+
+            if (contributors.length === 0) {
+                break;
+            }
+
+            const actualContributors = contributors.filter(
+                contributor => contributor.type !== "Bot"
+            );
+
+            allContributors.push(
+                ...actualContributors.map(contributor => ({
+                    githubId: contributor.id,
+                    login: contributor.login,
+                    name: null,
+                    avatarUrl: contributor.avatar_url ?? null,
+                    profileUrl: contributor.html_url ?? null,
+                    contributions: contributor.contributions ?? 0,
+                }))
+            );
+
+            if (contributors.length < perPage) {
+                break;
+            }
+
+            page++;
+        }
+
+        return allContributors;
     } catch (error) {
         if (error.response?.status === 404) {
             throw new Error("Can't import issues");

@@ -8,6 +8,7 @@ import {
     importCommits,
     importPullRequests,
     importIssues,
+    importContributors,
 } from "../controllers/repositoryController.js";
 
 
@@ -21,5 +22,6 @@ repositoryRouter.patch("/:id/sync", updateRepositoryById);
 repositoryRouter.post("/:id/commits/import", importCommits);
 repositoryRouter.post("/:id/pull-requests/import", importPullRequests);
 repositoryRouter.post("/:id/issues/import", importIssues);
+repositoryRouter.post("/:id/contributors/import", importContributors);
 
 export default repositoryRouter;
