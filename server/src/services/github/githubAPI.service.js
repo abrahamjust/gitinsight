@@ -7,6 +7,7 @@ export {
     getPullRequests,
     getIssues,
     getContributors,
+    getReleases
 }
 
 function extractRepositoryInfo(repositoryUrl) {
@@ -372,3 +373,87 @@ async function getContributors(repositoryUrl, perPage = 100) {
         throw error;
     }
 }
+
+async function getReleases(repositoryUrl, perPage = 100) {
+    try {
+        const { owner, repo } = extractRepositoryInfo(repositoryUrl);
+
+        let page = 1;
+        let allReleases = [];
+
+        while (true) {
+            const response = await axios.get(
+                `https://api.github.com/repos/${owner}/${repo}/releases`,
+                {
+                    params: {
+                        page,
+                        per_page: perPage,
+                    },
+                    headers: {
+                        Authorization: `Bearer ${env.GITHUB_TOKEN}`,
+                        Accept: "application/vnd.github+json",
+                    },
+                }
+            );
+
+            const releases = response.data;
+
+            if (releases.length === 0) {
+                break;
+            }
+
+            allReleases.push(
+                ...releases.map(release => ({
+                    githubId: release.id,
+
+                    tagName: release.tag_name,
+
+                    name: release.name ?? null,
+
+                    body: release.body ?? null,
+
+                    author: {
+                        login: release.author?.login ?? null,
+                        avatarUrl: release.author?.avatar_url ?? null,
+                    },
+
+                    draft: release.draft ?? false,
+
+                    prerelease: release.prerelease ?? false,
+
+                    createdAtGithub: release.created_at,
+
+                    publishedAtGithub: release.published_at,
+
+                    url: release.html_url,
+                }))
+            );
+
+            if (releases.length < perPage) {
+                break;
+            }
+
+            page++;
+        }
+
+        return allReleases;
+    } catch (error) {
+        if (error.response?.status === 404) {
+            throw new Error("Can't import releases data");
+        }
+
+        if (error.response?.status === 403) {
+            throw new Error("GitHub API rate limit exceeded");
+        }
+
+        throw error;
+    }
+}
+
+const releases = await getReleases(
+    "https://github.com/abrahamjust/InventoryManagement",
+    5
+);
+
+console.log("Total releases:", releases.length);
+console.log(releases[0]);

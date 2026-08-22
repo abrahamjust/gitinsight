@@ -4,6 +4,7 @@ import * as commitRepository from "../repositories/commitRepository.js";
 import * as pullRequestRepository from "../repositories/pullRequestRepository.js";
 import * as issueRepository from "../repositories/issueRepository.js";
 import * as contributorRepository from "../repositories/contributorRepository.js";
+import * as releaseRepository from "../repositories/releaseRepository.js";
 
 export { 
     handleImportRepository, 
@@ -15,6 +16,7 @@ export {
     importPullRequests,
     importIssues,
     importContributors,
+    importReleases
 };
 
 async function handleImportRepository (req, res) {
@@ -427,6 +429,73 @@ async function importContributors(req, res) {
 
         return res.status(500).json({
             message: "Failed to import contributors",
+        });
+    }
+}
+
+async function importReleases(req, res) {
+    try {
+        if (!req.user) {
+            return res.status(401).json({
+                message: "Authentication required",
+            });
+        }
+
+        const userId = req.user._id;
+        const repoId = req.params.id;
+
+        const repository =
+            await repositoryRepository.findByIdAndUserId(
+                repoId,
+                userId
+            );
+
+        if (!repository) {
+            return res.status(404).json({
+                message: "Repository not found",
+            });
+        }
+
+        const releaseData =
+            await githubService.getReleases(
+                repository.url
+            );
+
+        const releases = releaseData.map(release => ({
+            ...release,
+            repositoryId: repository._id,
+        }));
+
+        const existingGithubIds =
+            await releaseRepository.findExistingGithubIds(
+                repository._id,
+                releases.map(release => release.githubId)
+            );
+
+        const newReleases = releases.filter(
+            release =>
+                !existingGithubIds.has(release.githubId)
+        );
+
+        if (newReleases.length > 0) {
+            await releaseRepository.createMany(
+                newReleases
+            );
+        }
+
+        return res.status(201).json({
+            message: "Releases imported successfully",
+            imported: newReleases.length,
+            skipped:
+                releases.length -
+                newReleases.length,
+        });
+
+    } catch (error) {
+        console.error(error);
+
+        return res.status(500).json({
+            message: "Failed to import releases",
         });
     }
 }
