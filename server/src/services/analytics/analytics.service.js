@@ -6,6 +6,7 @@ import { calculateActivity } from "./activity/commitAnalytics.js";
 import { calculateCollaboration } from "./collaboration/pullRequestAnalytics.js";
 import { calculateIssues } from "./issues/issueAnalytics.js";
 import { connectMongo } from "../../config/database.js";
+import { calculateContributors } from "./contributors/contributorAnalytics.js";
 
 export {
     generateAnalytics
@@ -20,12 +21,14 @@ async function generateAnalytics(repositoryId) {
     const activity = calculateActivity(commits, contributors);
     const collaboration = calculateCollaboration(pullRequests);
     const issueAnalytics = calculateIssues(issues);
-
+    const contributorAnalytics = calculateContributors(contributors);
+    
     return {
         repositoryId,
         activity,
         collaboration,
         issues: issueAnalytics,
+        contributors: contributorAnalytics,
         calculatedAt: new Date()
     };
 }
