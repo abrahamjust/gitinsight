@@ -1,7 +1,7 @@
 import * as commitRepository from "../../repositories/commitRepository.js";
 import * as contributorRepository from "../../repositories/contributorRepository.js";
 import { calculateActivity } from "./activity/commitAnalytics.js";
-// import { connectMongo } from "../../config/database.js";
+import { connectMongo } from "../../config/database.js";
 
 export {
     generateAnalytics
@@ -12,6 +12,12 @@ async function generateAnalytics(repositoryId) {
     const contributors = await contributorRepository.findByRepositoryId(repositoryId);
     const activity = calculateActivity(commits, contributors);
 
+    console.log(
+        commits
+            .map(commit => commit.committedAt)
+            .sort()
+    );
+
     return {
         repositoryId,
         activity,
@@ -19,9 +25,9 @@ async function generateAnalytics(repositoryId) {
     };
 }
 
-// await connectMongo();
-// const result = await generateAnalytics(
-//     "6a871c315c1413ea1e2de562"
-// );
+await connectMongo();
+const result = await generateAnalytics(
+    "6a871c315c1413ea1e2de562"
+);
 
-// console.log(result);
+console.log(result);
