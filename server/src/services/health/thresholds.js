@@ -1,4 +1,6 @@
-export const activityThresholds = {
+export { activityThresholds, collaborationThresholds };
+
+const activityThresholds = {
     commitsLast30Days: {
         critical: 0,
         warning: 5,
@@ -25,5 +27,28 @@ export const activityThresholds = {
         targetMin: -10,
         targetMax: 25,
         maximum: 100,
+    },
+};
+
+const collaborationThresholds = {
+    mergeRate: {
+        critical: 10,
+        warning: 30,
+        good: 60,
+        excellent: 80,
+    },
+
+    medianTimeToMergeHours: {
+        excellent: 24,
+        good: 72,
+        warning: 168,
+        critical: 336,
+    },
+
+    medianPRSize: {
+        excellent: 10,
+        good: 50,
+        warning: 150,
+        critical: 500,
     },
 };
