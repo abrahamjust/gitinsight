@@ -19,7 +19,7 @@ async function startServer() {
     } catch (err) { 
         console.error("Error starting server:", err);
         process.exit(1); 
-    } 
+    }  
 }
 
 startServer();

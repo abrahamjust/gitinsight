@@ -174,6 +174,16 @@ async function updateRepositoryById(req, res) {
             });
         }
 
+        if (
+            existingRepository.analyticsStatus === "pending" ||
+            existingRepository.analyticsStatus === "processing"
+        ) {
+            return res.status(409).json({
+                message: "Repository synchronization is already in progress",
+                status: existingRepository.analyticsStatus,
+            });
+        }
+
         await repositoryRepository.updateByIdAndUserId(repoId, userId, { analyticsStatus: "pending"});
 
         const job = await syncQueue.add(
