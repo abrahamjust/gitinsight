@@ -7,6 +7,8 @@ import * as contributorRepository from "../repositories/contributorRepository.js
 import * as releaseRepository from "../repositories/releaseRepository.js";
 import * as pullRequestReviewRepository from "../repositories/pullRequestReviewRepository.js";
 
+import { deleteCache } from "../services/cache/redisService.js";
+
 export { 
     handleImportRepository, 
     getRepositoryData,
@@ -132,6 +134,8 @@ async function deleteRepositoryById (req, res) {
         });
     }
 
+    await deleteCache(`analytics:${repoId}`);
+
     return res.status(200).json({
         message: "Repository successfully deleted by repo id",
         deletedRepo,
@@ -179,6 +183,8 @@ async function updateRepositoryById (req, res) {
                 lastSynced: new Date(),
             }
         );
+
+        await deleteCache(`analytics:${repoId}`);
         
         return res.status(200).json({
             message: "Repository synchronized successfully",
@@ -231,6 +237,7 @@ async function importCommits (req, res) {
 
         if (newCommits.length > 0) {
             await commitRepository.createMany(newCommits);
+            await deleteCache(`analytics:${repoId}`);
         }
         
         return res.status(201).json({
@@ -290,6 +297,7 @@ async function importPullRequests (req, res) {
         
         if (newPullRequests.length > 0) {
             await pullRequestRepository.createMany(newPullRequests);
+            await deleteCache(`analytics:${repoId}`);
         }
 
         return res.status(201).json({
@@ -348,6 +356,7 @@ async function importIssues (req, res) {
 
         if (newIssues.length > 0) {
             await issueRepository.createMany(newIssues);
+            await deleteCache(`analytics:${repoId}`);
         }
 
         return res.status(201).json({
@@ -416,6 +425,7 @@ async function importContributors(req, res) {
             await contributorRepository.createMany(
                 newContributors
             );
+            await deleteCache(`analytics:${repoId}`);
         }
 
         return res.status(201).json({
@@ -483,6 +493,7 @@ async function importReleases(req, res) {
             await releaseRepository.createMany(
                 newReleases
             );
+            await deleteCache(`analytics:${repoId}`);
         }
 
         return res.status(201).json({
@@ -570,6 +581,7 @@ async function importPullRequestReviews(req, res) {
 
         if (newReviews.length > 0) {
             await pullRequestReviewRepository.createMany(newReviews);
+            await deleteCache(`analytics:${repoId}`);
         }
 
         return res.status(200).json({

@@ -6,7 +6,7 @@ import { connectMongo, connectRedis } from "./config/database.js";
 async function startServer() {
     try {
         await connectMongo(); // to connect to mongodb
-        // await connectRedis(); // to connect to redis
+        await connectRedis(); // to connect to redis
 
         app.listen(env.SERVER_PORT, (error) => {
 

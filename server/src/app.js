@@ -2,13 +2,12 @@ import express from "express";
 import session from "express-session";
 import passport from "passport";
 import "./config/passport.js";
-// import connectMongo from "./config/mongo.js";
-// import connectRedis from "./config/redis.js";
+
 import authRouter from "./routes/authRoutes.js";
 import dashboardRouter from "./routes/dashboardRoutes.js";
 import repositoryRouter from "./routes/repositoryRoutes.js";
-// import userRoutes from "./routes/user.js";
-// import repoRoutes from "./routes/repo.js";
+import analyticsRouter from "./routes/analyticsRoutes.js";
+
 import { env } from "./config/env.js";
 
 const app = express();
@@ -29,5 +28,6 @@ app.use(passport.session());
 app.use("/auth", authRouter);
 app.use(dashboardRouter);
 app.use("/repositories", repositoryRouter);
+app.use("/analytics", analyticsRouter);
 
 export default app;

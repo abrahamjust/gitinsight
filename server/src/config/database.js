@@ -26,6 +26,10 @@ redisClient.on("connect", () => {
     console.log("Connected to Redis");
 });
 
+redisClient.on("ready", () => {
+    console.log("Redis is ready");
+});
+
 export async function connectRedis() {
     await redisClient.connect();
 }

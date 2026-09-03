@@ -8,7 +8,6 @@ import * as pullRequestReviewRepository from "../../repositories/pullRequestRevi
 import { calculateActivity } from "./activity/commitAnalytics.js";
 import { calculateCollaboration } from "./collaboration/pullRequestAnalytics.js";
 import { calculateIssues } from "./issues/issueAnalytics.js";
-import { connectMongo } from "../../config/database.js";
 import { calculateContributors } from "./contributors/contributorAnalytics.js";
 import { calculateReleases } from "./releases/releaseAnalytics.js";
 import { calculatePRReviewAnalytics } from "./collaboration/pullRequestReviewAnalytics.js";
@@ -18,11 +17,24 @@ import { detectRepositoryBottlenecks } from "../bottlenecks/bottleneckEngine.js"
 import { buildAIContext } from "../ai/aiContextBuilder.js";
 import { generateRepositoryExplanation } from "../ai/aiExplanationService.js";
 
+import { getCache, setCache } from "../cache/redisService.js";
+
 export {
     generateAnalytics
 }
 
 async function generateAnalytics(repositoryId) {
+
+    const cacheKey = `analytics:${repositoryId}`;
+    const cachedAnalytics = await getCache(cacheKey);
+
+    if (cachedAnalytics) {
+        console.log("Analytics cache hit");
+        return cachedAnalytics;
+    }
+
+    console.log("Analytics cache miss");
+
     const commits = await commitRepository.findByRepositoryId(repositoryId);
     const contributors = await contributorRepository.findByRepositoryId(repositoryId);
     const pullRequests = await pullRequestRepository.findByRepositoryId(repositoryId);
@@ -56,18 +68,15 @@ async function generateAnalytics(repositoryId) {
     
     const aiExplanation = await generateRepositoryExplanation(aiContext);
 
-    return {
+    const result = {
         ...analytics,
         health,
         bottlenecks,
         aiContext,
         aiExplanation,
     };
+
+    await setCache(cacheKey, result, 600);
+
+    return result;
 }
-
-await connectMongo();
-const result = await generateAnalytics(
-    "6a99052ab26193c70f2e4d52"
-);
-
-console.dir(result, { depth: null });
