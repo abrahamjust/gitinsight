@@ -1,6 +1,6 @@
-export { getHealthScore };
+export { getHealthStatus };
 
-function getHealthScore(score) {
+function getHealthStatus(score) {
     if (score === null || score === undefined) {
         return "not_applicable";
     } else if (score >= 90) {
