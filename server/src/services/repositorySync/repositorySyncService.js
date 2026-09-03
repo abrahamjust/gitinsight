@@ -34,7 +34,7 @@ async function syncRepository(repositoryId, userId) {
         }
     );
 
-    const commitData = await githubService.getCommits(repository.url);
+    const commitData = await githubService.getCommits(repository.url, repository.lastSynced);
 
     const commits = commitData.map(commit => ({
         ...commit,

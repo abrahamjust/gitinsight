@@ -99,7 +99,7 @@ const repositorySchema = new mongoose.Schema(
 
         lastSynced: {
             type: Date,
-            default: Date.now,
+            default: null,
         },
 
         analyticsStatus: {

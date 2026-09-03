@@ -1,4 +1,4 @@
-import axios, { all } from "axios";
+import axios from "axios";
 import {env} from "../../config/env.js";
 
 export {
@@ -29,6 +29,29 @@ function extractRepositoryInfo(repositoryUrl) {
 
     return {
         owner, repo,
+    }
+}
+
+async function githubRequest(url, config = {}) {
+    try {
+        return await axios.get(url, {
+            ...config,
+            headers: {
+                Authorization: `Bearer ${env.GITHUB_TOKEN}`,
+                Accept: "application/vnd.github+json",
+                ...config.headers,
+            },
+        });
+    } catch (error) {
+        if (error.response?.status === 404) {
+            throw new Error("GitHub resource not found");
+        }
+
+        if (error.response?.status === 403) {
+            throw new Error("GitHub API rate limit exceeded");
+        }
+
+        throw error;
     }
 }
 
@@ -83,7 +106,7 @@ async function getRepository(repositoryUrl) {
     }
 }
 
-async function getCommits(repositoryUrl, perPage=100) {
+async function getCommits(repositoryUrl, since = null, perPage=100) {
     try {
         const { owner, repo } = extractRepositoryInfo(repositoryUrl);
 
@@ -97,6 +120,7 @@ async function getCommits(repositoryUrl, perPage=100) {
                     params: {
                         page,
                         per_page: perPage,
+                        ...(since && { since }),
                     },
                     headers: {
                         Authorization: `Bearer ${env.GITHUB_TOKEN}`,
