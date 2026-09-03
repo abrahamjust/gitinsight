@@ -15,6 +15,8 @@ import { calculatePRReviewAnalytics } from "./collaboration/pullRequestReviewAna
 
 import { calculateRepositoryHealth } from "../health/healthEngine.js";
 import { detectRepositoryBottlenecks } from "../bottlenecks/bottleneckEngine.js";
+import { buildAIContext } from "../ai/aiContextBuilder.js";
+import { generateRepositoryExplanation } from "../ai/aiExplanationService.js";
 
 export {
     generateAnalytics
@@ -50,10 +52,16 @@ async function generateAnalytics(repositoryId) {
 
     const bottlenecks = detectRepositoryBottlenecks(analytics, health);
 
+    const aiContext = buildAIContext(analytics, health, bottlenecks);
+    
+    const aiExplanation = await generateRepositoryExplanation(aiContext);
+
     return {
         ...analytics,
         health,
-        bottlenecks
+        bottlenecks,
+        aiContext,
+        aiExplanation,
     };
 }
 
