@@ -1,4 +1,4 @@
-export { activityThresholds, collaborationThresholds, issueThresholds, contributorThresholds, releaseThresholds };
+export { activityThresholds, collaborationThresholds, issueThresholds, contributorThresholds, releaseThresholds, reviewThresholds };
 
 const activityThresholds = {
     commitsLast30Days: {
@@ -138,5 +138,41 @@ const releaseThresholds = {
         good: 90,
         warning: 180,
         critical: 365,
+    },
+};
+
+
+const reviewThresholds = {
+
+    // Percentage of PRs receiving at least one review
+    reviewCoverage: {
+        critical: 20,
+        warning: 40,
+        good: 70,
+        excellent: 90,
+    },
+
+    // Hours until the first review
+    medianTimeToFirstReviewHours: {
+        excellent: 24,
+        good: 72,
+        warning: 168,
+        critical: 336,
+    },
+
+    // Lower concentration = healthier
+    reviewerConcentration: {
+        excellent: 0.20,
+        good: 0.35,
+        warning: 0.50,
+        critical: 0.70,
+    },
+
+    // Number of unique reviewers
+    uniqueReviewers: {
+        critical: 1,
+        warning: 2,
+        good: 5,
+        excellent: 10,
     },
 };
