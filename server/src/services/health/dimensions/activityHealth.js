@@ -6,16 +6,9 @@ import { createMetricResult } from "../utils/metricResult.js";
 import { getHealthStatus } from "../status.js";
 import { calculateWeightedScore } from "../utils/aggregation.js";
 import { activityThresholds } from "../thresholds.js";
+import { activityMetricWeights } from "../weights.js";
 
 export { calculateActivityHealth };
-
-const activityMetricWeights = {
-    commitsLast30Days: 0.30,
-    commitsPerWeek: 0.25,
-    longestInactivityDays: 0.30,
-    trend: 0.15,
-};
-
 
 function calculateActivityHealth(activity) {
 

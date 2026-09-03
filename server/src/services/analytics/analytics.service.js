@@ -13,6 +13,8 @@ import { calculateContributors } from "./contributors/contributorAnalytics.js";
 import { calculateReleases } from "./releases/releaseAnalytics.js";
 import { calculatePRReviewAnalytics } from "./collaboration/pullRequestReviewAnalytics.js";
 
+import { calculateRepositoryHealth } from "../health/healthEngine.js";
+
 export {
     generateAnalytics
 }
@@ -32,7 +34,7 @@ async function generateAnalytics(repositoryId) {
     const releaseAnalytics = calculateReleases(releases);
     const prReviewAnalytics = calculatePRReviewAnalytics(pullRequests, reviews);
     
-    return {
+    const analytics = {
         repositoryId,
         activity,
         collaboration,
@@ -42,6 +44,13 @@ async function generateAnalytics(repositoryId) {
         pullRequestReviews: prReviewAnalytics,
         calculatedAt: new Date()
     };
+
+    const health = calculateRepositoryHealth(analytics);
+
+    return {
+        ...analytics,
+        health
+    };
 }
 
 await connectMongo();
@@ -49,4 +58,4 @@ const result = await generateAnalytics(
     "6a99052ab26193c70f2e4d52"
 );
 
-console.log(result);
+console.dir(result, { depth: null });

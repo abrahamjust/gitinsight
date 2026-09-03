@@ -4,16 +4,9 @@ import { scoreLowerIsBetter } from "../scoring/lowerIsBetter.js";
 import { createMetricResult } from "../utils/metricResult.js";
 import { calculateWeightedScore } from "../utils/aggregation.js";
 import { releaseThresholds } from "../thresholds.js";
+import { releaseMetricWeights } from "../weights.js";
 
 export { calculateReleaseHealth };
-
-const releaseMetricWeights = {
-    releasesLast90Days: 0.25,
-    medianReleaseIntervalDays: 0.30,
-    longestReleaseGapDays: 0.20,
-    latestReleaseAgeDays: 0.25,
-};
-
 
 function calculateReleaseHealth(releases) {
 

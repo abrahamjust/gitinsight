@@ -5,14 +5,7 @@ import { getHealthStatus } from "../status.js";
 import { calculateWeightedScore } from "../utils/aggregation.js";
 import { issueThresholds } from "../thresholds.js";
 import { scoreBacklogTrend } from "../scoring/backlogTrendScore.js";
-
-const issueMetricWeights = {
-    closureRate: 0.30,
-    medianResolutionTimeHours: 0.35,
-    averageComments: 0.20,
-    backlogTrend: 0.15,
-};
-
+import { issueMetricWeights } from "../weights.js";
 
 export function calculateIssueHealth(issues) {
 

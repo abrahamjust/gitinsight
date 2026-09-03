@@ -4,16 +4,9 @@ import { scoreLowerIsBetter } from "../scoring/lowerIsBetter.js";
 import { createMetricResult } from "../utils/metricResult.js";
 import { calculateWeightedScore } from "../utils/aggregation.js";
 import { reviewThresholds } from "../thresholds.js";
+import { reviewMetricWeights } from "../weights.js";
 
 export { calculateReviewHealth };
-
-const reviewMetricWeights = {
-    reviewCoverage: 0.35,
-    medianTimeToFirstReviewHours: 0.30,
-    reviewerConcentration: 0.20,
-    uniqueReviewers: 0.15,
-};
-
 
 function calculateReviewHealth(reviews) {
 

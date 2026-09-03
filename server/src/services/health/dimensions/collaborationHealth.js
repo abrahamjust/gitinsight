@@ -4,15 +4,9 @@ import { createMetricResult } from "../utils/metricResult.js";
 import { getHealthStatus } from "../status.js";
 import { calculateWeightedScore } from "../utils/aggregation.js";
 import { collaborationThresholds } from "../thresholds.js";
+import { collaborationMetricWeights } from "../weights.js";
 
 export { calculateCollaborationHealth };
-
-const collaborationMetricWeights = {
-    mergeRate: 0.25,
-    medianTimeToMergeHours: 0.30,
-    medianPRSize: 0.20,
-};
-
 
 function calculateCollaborationHealth(collaboration) {
 

@@ -4,16 +4,9 @@ import { scoreLowerIsBetter } from "../scoring/lowerIsBetter.js";
 import { createMetricResult } from "../utils/metricResult.js";
 import { calculateWeightedScore } from "../utils/aggregation.js";
 import { contributorThresholds } from "../thresholds.js";
+import { contributorMetricWeights } from "../weights.js";
 
 export { calculateContributorHealth };
-
-const contributorMetricWeights = {
-    busFactor: 0.40,
-    topContributorShare: 0.25,
-    topThreeContributorShare: 0.15,
-    concentrationHHI: 0.20,
-};
-
 
 function calculateContributorHealth(contributors) {
 
