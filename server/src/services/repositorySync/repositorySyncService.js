@@ -6,6 +6,7 @@ import * as issueRepository from "../../repositories/issueRepository.js";
 import * as contributorRepository from "../../repositories/contributorRepository.js";
 import * as releaseRepository from "../../repositories/releaseRepository.js";
 import * as pullRequestReviewRepository from "../../repositories/pullRequestReviewRepository.js";
+import { deleteCache } from "../cache/redisService.js";
 
 export { syncRepository };
 
@@ -186,6 +187,8 @@ async function syncRepository(repositoryId, userId) {
             );
         }
     }
+
+    await deleteCache(`analytics:${repositoryId}`);
 
     return {
         repositoryId,

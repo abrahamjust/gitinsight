@@ -104,7 +104,7 @@ const repositorySchema = new mongoose.Schema(
 
         analyticsStatus: {
             type: String,
-            enum: ["pending", "processing", "completed"],
+            enum: ["pending", "processing", "completed", "failed"],
             default: "pending",
         },
     },

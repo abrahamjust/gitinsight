@@ -23,5 +23,7 @@ async function getCache(key) {
 }
 
 async function deleteCache(key) {
+    console.log("Deleting cache:", key);
     await redisClient.del(key);
+    console.log("Cache deleted:", key);
 }

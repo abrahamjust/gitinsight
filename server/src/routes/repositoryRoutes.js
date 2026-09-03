@@ -10,7 +10,8 @@ import {
     importIssues,
     importContributors,
     importReleases,
-    importPullRequestReviews
+    importPullRequestReviews,
+    getSyncStatus
 } from "../controllers/repositoryController.js";
 
 
@@ -18,6 +19,7 @@ const repositoryRouter = Router();
 
 repositoryRouter.post("/import", handleImportRepository);
 repositoryRouter.get("/", getRepositoryData);
+repositoryRouter.get("/:id/sync-status", getSyncStatus);
 repositoryRouter.get("/:id", getRepositoryById);
 repositoryRouter.delete("/:id", deleteRepositoryById);
 repositoryRouter.patch("/:id/sync", updateRepositoryById);

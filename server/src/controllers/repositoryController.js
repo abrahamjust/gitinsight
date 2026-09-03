@@ -22,7 +22,8 @@ export {
     importIssues,
     importContributors,
     importReleases,
-    importPullRequestReviews
+    importPullRequestReviews,
+    getSyncStatus
 };
 
 async function handleImportRepository (req, res) {
@@ -173,15 +174,29 @@ async function updateRepositoryById(req, res) {
             });
         }
 
-        const job = await syncQueue.add("sync-repository", {
-            repositoryId: repoId,
-            userId,
-        });
+        await repositoryRepository.updateByIdAndUserId(repoId, userId, { analyticsStatus: "pending"});
+
+        const job = await syncQueue.add(
+            "sync-repository",
+            {
+                repositoryId: repoId,
+                userId,
+            },
+            {
+                attempts: 3,
+                backoff: {
+                    type: "exponential",
+                    delay: 5000,
+                },
+                removeOnComplete: true,
+                removeOnFail: false,
+            }
+        );
 
         return res.status(202).json({
             message: "Repository synchronization started",
             jobId: job.id,
-            status: "queued",
+            status: "pending",
         });
 
     } catch (error) {
@@ -589,6 +604,44 @@ async function importPullRequestReviews(req, res) {
         return res.status(500).json({
             message: "Failed to import pull request reviews",
             error: error.message,
+        });
+    }
+}
+
+async function getSyncStatus(req, res) {
+    try {
+        if (!req.user) {
+            return res.status(401).json({
+                message: "Authentication required",
+            });
+        }
+
+        const userId = req.user._id;
+        const repoId = req.params.id;
+
+        const repository =
+            await repositoryRepository.findByIdAndUserId(
+                repoId,
+                userId
+            );
+
+        if (!repository) {
+            return res.status(404).json({
+                message: "Repository not found",
+            });
+        }
+
+        return res.status(200).json({
+            repositoryId: repository._id,
+            status: repository.analyticsStatus,
+            lastSynced: repository.lastSynced,
+        });
+
+    } catch (error) {
+        console.error("Sync status error:", error);
+
+        return res.status(500).json({
+            message: "Failed to retrieve synchronization status",
         });
     }
 }
