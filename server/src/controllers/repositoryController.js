@@ -184,7 +184,10 @@ async function updateRepositoryById(req, res) {
             });
         }
 
-        await repositoryRepository.updateByIdAndUserId(repoId, userId, { analyticsStatus: "pending"});
+        await repositoryRepository.updateByIdAndUserId(repoId, userId, { 
+            analyticsStatus: "pending",
+            syncError: null
+        });
 
         const job = await syncQueue.add(
             "sync-repository",
@@ -645,6 +648,7 @@ async function getSyncStatus(req, res) {
             repositoryId: repository._id,
             status: repository.analyticsStatus,
             lastSynced: repository.lastSynced,
+            syncError: repository.syncError,
         });
 
     } catch (error) {

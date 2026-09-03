@@ -107,6 +107,11 @@ const repositorySchema = new mongoose.Schema(
             enum: ["pending", "processing", "completed", "failed"],
             default: "pending",
         },
+
+        syncError: {
+            type: String,
+            default: null,
+        },
     },
     {
         timestamps: true,

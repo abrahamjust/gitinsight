@@ -41,7 +41,8 @@ const worker = new Worker(
                 repositoryId,
                 userId,
                 {
-                    analyticsStatus: "completed"
+                    analyticsStatus: "completed",
+                    syncError: null
                 }
             );
 
@@ -85,7 +86,8 @@ worker.on("failed", async (job, error) => {
             job.data.repositoryId,
             job.data.userId,
             {
-                analyticsStatus: "failed"
+                analyticsStatus: "failed",
+                syncError: error.message || "Repository synchronization failed"
             }
         );
     }
