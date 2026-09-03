@@ -9,7 +9,8 @@ import {
     importPullRequests,
     importIssues,
     importContributors,
-    importReleases
+    importReleases,
+    importPullRequestReviews
 } from "../controllers/repositoryController.js";
 
 
@@ -25,5 +26,6 @@ repositoryRouter.post("/:id/pull-requests/import", importPullRequests);
 repositoryRouter.post("/:id/issues/import", importIssues);
 repositoryRouter.post("/:id/contributors/import", importContributors);
 repositoryRouter.post("/:id/releases/import", importReleases);
+repositoryRouter.post("/:id/pull-request-reviews/import", importPullRequestReviews);
 
 export default repositoryRouter;

@@ -7,7 +7,8 @@ export {
     getPullRequests,
     getIssues,
     getContributors,
-    getReleases
+    getReleases,
+    getPullRequestReviews
 }
 
 function extractRepositoryInfo(repositoryUrl) {
@@ -489,10 +490,58 @@ async function getReleases(repositoryUrl, perPage = 100) {
     }
 }
 
-const releases = await getReleases(
-    "https://github.com/abrahamjust/InventoryManagement",
-    5
-);
+async function getPullRequestReviews(repositoryUrl, pullRequestNumber) {
+    const { owner, repo } = extractRepositoryInfo(repositoryUrl);
 
-console.log("Total releases:", releases.length);
-console.log(releases[0]);
+    let page = 1;
+    let allReviews = [];
+
+    while (true) {
+        const response = await axios.get(
+            `https://api.github.com/repos/${owner}/${repo}/pulls/${pullRequestNumber}/reviews`,
+            {
+                params: {
+                    page,
+                    per_page: 100,
+                },
+                headers: {
+                    Authorization: `Bearer ${env.GITHUB_TOKEN}`,
+                    Accept: "application/vnd.github+json",
+                },
+            }
+        );
+
+        const reviews = response.data;
+
+        if (reviews.length === 0) {
+            break;
+        }
+
+        for (const review of reviews) {
+            allReviews.push({
+                githubId: review.id,
+
+                reviewer: {
+                login: review.user?.login ?? null,
+                avatarUrl: review.user?.avatar_url ?? null,
+                },
+
+                state: review.state,
+
+                submittedAt: review.submitted_at,
+
+                body: review.body ?? null,
+
+                url: review.html_url,
+            });
+        }
+
+        if (reviews.length < 100) {
+            break;
+        }
+
+        page++;
+    }
+
+    return allReviews;
+}

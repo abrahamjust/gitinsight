@@ -5,6 +5,7 @@ import * as pullRequestRepository from "../repositories/pullRequestRepository.js
 import * as issueRepository from "../repositories/issueRepository.js";
 import * as contributorRepository from "../repositories/contributorRepository.js";
 import * as releaseRepository from "../repositories/releaseRepository.js";
+import * as pullRequestReviewRepository from "../repositories/pullRequestReviewRepository.js";
 
 export { 
     handleImportRepository, 
@@ -16,7 +17,8 @@ export {
     importPullRequests,
     importIssues,
     importContributors,
-    importReleases
+    importReleases,
+    importPullRequestReviews
 };
 
 async function handleImportRepository (req, res) {
@@ -496,6 +498,91 @@ async function importReleases(req, res) {
 
         return res.status(500).json({
             message: "Failed to import releases",
+        });
+    }
+}
+
+async function importPullRequestReviews(req, res) {
+    try {
+        
+        if (!req.user) {
+            return res.status(401).json({
+                message: "Authentication required",
+            });
+        }
+
+        const userId = req.user._id;
+        const repoId = req.params.id;
+
+        const repository = await repositoryRepository.findByIdAndUserId(repoId, userId);
+
+        if (!repository) {
+            return res.status(404).json({
+                message: "Repository not found",
+            });
+        }
+
+        const pullRequests = await pullRequestRepository.findByRepositoryId(repoId);
+
+        if (pullRequests.length === 0) {
+            return res.status(400).json({
+                message: "No pull requests found for this repository",
+            });
+        }
+
+        let reviewsToInsert = [];
+
+        for (const pullRequest of pullRequests) {
+            const reviews = await githubService.getPullRequestReviews(
+                repository.url,
+                pullRequest.number
+            );
+
+            for (const review of reviews) {
+                reviewsToInsert.push({
+                    repositoryId: repoId,
+                    pullRequestId: pullRequest._id,
+                    ...review,
+                });
+            }
+        }
+
+        if (reviewsToInsert.length === 0) {
+            return res.status(200).json({
+                message: "No pull request reviews found",
+                imported: 0,
+                skipped: 0,
+            });
+        }
+
+        const githubIds = reviewsToInsert.map(
+            (review) => review.githubId
+        );
+
+        const existingGithubIds = await pullRequestReviewRepository.findExistingGithubIds(
+            repoId,
+            githubIds
+        );
+
+        const newReviews = reviewsToInsert.filter(
+            (review) => !existingGithubIds.has(review.githubId)
+        );
+
+        if (newReviews.length > 0) {
+            await pullRequestReviewRepository.createMany(newReviews);
+        }
+
+        return res.status(200).json({
+            message: "Pull request reviews imported successfully",
+            imported: newReviews.length,
+            skipped: reviewsToInsert.length - newReviews.length,
+        });
+    } catch (error) {
+        console.error("Error importing pull request reviews:", error);
+
+        return res.status(500).json({
+            message: "Failed to import pull request reviews",
+            error: error.message,
         });
     }
 }
