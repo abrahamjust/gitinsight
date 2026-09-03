@@ -14,6 +14,7 @@ import { calculateReleases } from "./releases/releaseAnalytics.js";
 import { calculatePRReviewAnalytics } from "./collaboration/pullRequestReviewAnalytics.js";
 
 import { calculateRepositoryHealth } from "../health/healthEngine.js";
+import { detectRepositoryBottlenecks } from "../bottlenecks/bottleneckEngine.js";
 
 export {
     generateAnalytics
@@ -47,9 +48,12 @@ async function generateAnalytics(repositoryId) {
 
     const health = calculateRepositoryHealth(analytics);
 
+    const bottlenecks = detectRepositoryBottlenecks(analytics, health);
+
     return {
         ...analytics,
-        health
+        health,
+        bottlenecks
     };
 }
 
