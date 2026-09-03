@@ -7,6 +7,8 @@ import * as contributorRepository from "../repositories/contributorRepository.js
 import * as releaseRepository from "../repositories/releaseRepository.js";
 import * as pullRequestReviewRepository from "../repositories/pullRequestReviewRepository.js";
 
+import { syncQueue } from "../services/jobs/syncQueue.js";
+
 import { deleteCache } from "../services/cache/redisService.js";
 
 export { 
@@ -148,7 +150,7 @@ async function deleteRepositoryById (req, res) {
     }
 }
 
-async function updateRepositoryById (req, res) {
+async function updateRepositoryById(req, res) {
     try {
         if (!req.user) {
             return res.status(401).json({
@@ -159,42 +161,34 @@ async function updateRepositoryById (req, res) {
         const userId = req.user._id;
         const repoId = req.params.id;
 
-        const existingRepository = await repositoryRepository.findByIdAndUserId(
-            repoId,
-            userId
-        );
+        const existingRepository =
+            await repositoryRepository.findByIdAndUserId(
+                repoId,
+                userId
+            );
 
         if (!existingRepository) {
             return res.status(404).json({
-                message: "Repository not found"
+                message: "Repository not found",
             });
         }
 
-        const repositoryData = await githubService.getRepository(
-            existingRepository.url
-        );
-
-        const updatedRepository = await repositoryRepository.updateByIdAndUserId(
-            repoId,
+        const job = await syncQueue.add("sync-repository", {
+            repositoryId: repoId,
             userId,
-            {
-                ...repositoryData,
-                userId,
-                lastSynced: new Date(),
-            }
-        );
-
-        await deleteCache(`analytics:${repoId}`);
-        
-        return res.status(200).json({
-            message: "Repository synchronized successfully",
-            repository: updatedRepository,
         });
+
+        return res.status(202).json({
+            message: "Repository synchronization started",
+            jobId: job.id,
+            status: "queued",
+        });
+
     } catch (error) {
-        console.error(error);
-        
+        console.error("Sync error:", error);
+
         return res.status(500).json({
-            message: "Failed to synchronize repository",
+            message: "Failed to start repository synchronization",
         });
     }
 }
