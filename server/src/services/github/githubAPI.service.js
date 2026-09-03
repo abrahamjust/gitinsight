@@ -32,28 +32,28 @@ function extractRepositoryInfo(repositoryUrl) {
     }
 }
 
-async function githubRequest(url, config = {}) {
-    try {
-        return await axios.get(url, {
-            ...config,
-            headers: {
-                Authorization: `Bearer ${env.GITHUB_TOKEN}`,
-                Accept: "application/vnd.github+json",
-                ...config.headers,
-            },
-        });
-    } catch (error) {
-        if (error.response?.status === 404) {
-            throw new Error("GitHub resource not found");
-        }
+// async function githubRequest(url, config = {}) {
+//     try {
+//         return await axios.get(url, {
+//             ...config,
+//             headers: {
+//                 Authorization: `Bearer ${env.GITHUB_TOKEN}`,
+//                 Accept: "application/vnd.github+json",
+//                 ...config.headers,
+//             },
+//         });
+//     } catch (error) {
+//         if (error.response?.status === 404) {
+//             throw new Error("GitHub resource not found");
+//         }
 
-        if (error.response?.status === 403) {
-            throw new Error("GitHub API rate limit exceeded");
-        }
+//         if (error.response?.status === 403) {
+//             throw new Error("GitHub API rate limit exceeded");
+//         }
 
-        throw error;
-    }
-}
+//         throw error;
+//     }
+// }
 
 async function getRepository(repositoryUrl) {
     try {
@@ -171,7 +171,7 @@ async function getCommits(repositoryUrl, since = null, perPage=100) {
     }
 }
 
-async function getPullRequests(repositoryUrl, perPage = 100) {
+async function getPullRequests(repositoryUrl, since = null, perPage = 100) {
     try {
         const { owner, repo } = extractRepositoryInfo(repositoryUrl);
 
@@ -184,6 +184,8 @@ async function getPullRequests(repositoryUrl, perPage = 100) {
                 {
                     params: {
                         state: "all",
+                        sort: "updated",
+                        direction: "desc",
                         page,
                         per_page: perPage,
                     },
@@ -200,71 +202,67 @@ async function getPullRequests(repositoryUrl, perPage = 100) {
                 break;
             }
 
-            for (const pullRequest of pullRequests) {
-                const detailResponse = await axios.get(
-                    `https://api.github.com/repos/${owner}/${repo}/pulls/${pullRequest.number}`,
-                    {
-                        headers: {
-                            Authorization: `Bearer ${env.GITHUB_TOKEN}`,
-                            Accept: "application/vnd.github+json",
-                        },
-                    }
+            let reachedSyncPoint = false;
+
+            if (since) {
+                const recentPullRequests = pullRequests.filter(
+                    (pullRequest) => new Date(pullRequest.updated_at) > new Date(since)
                 );
 
-                const details = detailResponse.data;
+                if (recentPullRequests.length < pullRequests.length) {
+                    reachedSyncPoint = true;
+                }
 
-                allPullRequests.push({
-                    githubId: pullRequest.id,
-                    number: pullRequest.number,
-                    title: pullRequest.title,
-                    body: pullRequest.body ?? null,
-
-                    state: pullRequest.state,
-
-                    author: {
-                        login: pullRequest.user?.login ?? null,
-                        avatarUrl: pullRequest.user?.avatar_url ?? null,
-                    },
-
-                    createdAtGithub: pullRequest.created_at,
-                    updatedAtGithub: pullRequest.updated_at,
-                    closedAt: pullRequest.closed_at,
-                    mergedAt: details.merged_at,
-
-                    url: pullRequest.html_url,
-
-                    additions: details.additions ?? 0,
-                    deletions: details.deletions ?? 0,
-                    changedFiles: details.changed_files ?? 0,
-                });
+                pullRequests.length = 0;
+                pullRequests.push(...recentPullRequests);
             }
+            
+            const pullRequestDetails = await Promise.all(
+                pullRequests.map(async (pullRequest) => {
+                    const detailResponse = await axios.get(
+                        `https://api.github.com/repos/${owner}/${repo}/pulls/${pullRequest.number}`,
+                        {
+                            headers: {
+                                Authorization: `Bearer ${env.GITHUB_TOKEN}`,
+                                Accept: "application/vnd.github+json",
+                            },
+                        }
+                    );
 
-            // allPullRequests.push(
-            //     ...pullRequests.map(pullRequest => ({
-            //         githubId: pullRequest.id,
-            //         number: pullRequest.number,
-            //         title: pullRequest.title,
-            //         body: pullRequest.body ?? null,
+                    const details = detailResponse.data;
 
-            //         state: pullRequest.state,
+                    return {
+                        githubId: pullRequest.id,
+                        number: pullRequest.number,
+                        title: pullRequest.title,
+                        body: pullRequest.body ?? null,
 
-            //         author: {
-            //             login: pullRequest.user?.login ?? null,
-            //             avatarUrl: pullRequest.user?.avatar_url ?? null,
-            //         },
+                        state: pullRequest.state,
 
-            //         createdAtGithub: pullRequest.created_at,
-            //         updatedAtGithub: pullRequest.updated_at,
-            //         closedAt: pullRequest.closed_at,
-            //         mergedAt: pullRequest.merged_at,
+                        author: {
+                            login: pullRequest.user?.login ?? null,
+                            avatarUrl: pullRequest.user?.avatar_url ?? null,
+                        },
 
-            //         url: pullRequest.html_url,
+                        createdAtGithub: pullRequest.created_at,
+                        updatedAtGithub: pullRequest.updated_at,
+                        closedAt: pullRequest.closed_at,
+                        mergedAt: details.merged_at,
 
-            //         additions: pullRequest.additions ?? 0,
-            //         deletions: pullRequest.deletions ?? 0,
-            //         changedFiles: pullRequest.changed_files ?? 0,
-            //     }))
-            // );
+                        url: pullRequest.html_url,
+
+                        additions: details.additions ?? 0,
+                        deletions: details.deletions ?? 0,
+                        changedFiles: details.changed_files ?? 0,
+                    };
+                })
+            );
+
+            allPullRequests.push(...pullRequestDetails);
+            
+            if (reachedSyncPoint) {
+                break;
+            }
 
             if (pullRequests.length < perPage) {
                 break;

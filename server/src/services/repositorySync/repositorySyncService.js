@@ -20,6 +20,9 @@ async function syncRepository(repositoryId, userId) {
         throw new Error("Repository not found");
     }
 
+    const previousLastSynced = repository.lastSynced;
+    const syncStartedAt = new Date();
+
     const repositoryData = await githubService.getRepository(
         repository.url
     );
@@ -30,11 +33,10 @@ async function syncRepository(repositoryId, userId) {
         {
             ...repositoryData,
             userId,
-            lastSynced: new Date(),
         }
     );
 
-    const commitData = await githubService.getCommits(repository.url, repository.lastSynced);
+    const commitData = await githubService.getCommits(repository.url, previousLastSynced);
 
     const commits = commitData.map(commit => ({
         ...commit,
@@ -55,7 +57,8 @@ async function syncRepository(repositoryId, userId) {
     }
 
     const prData = await githubService.getPullRequests(
-        repository.url
+        repository.url,
+        previousLastSynced
     );
 
     const pullRequests = prData.map(pr => ({
@@ -189,6 +192,14 @@ async function syncRepository(repositoryId, userId) {
     }
 
     await deleteCache(`analytics:${repositoryId}`);
+
+    await repositoryRepository.updateByIdAndUserId(
+        repositoryId,
+        userId,
+        {
+            lastSynced: syncStartedAt,
+        }
+    );
 
     return {
         repositoryId,
