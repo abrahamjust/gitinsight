@@ -3,18 +3,25 @@
 <!-- PROJECT LOGO -->
 
 <br />
+
 <div align="center">
 
-<h3 align="center">Gitinsight</h3>
+<h3 align="center">GitInsight</h3>
 
 <p align="center">
-An AI-assisted software repository analytics platform that imports GitHub repositories, analyzes development activity, computes repository health metrics, detects engineering bottlenecks, and generates intelligent insights using Node.js, Express, MongoDB, Redis, OpenAI, and React.
+
+An AI-assisted software repository analytics platform that imports GitHub repositories, analyzes development activity, computes repository health metrics, detects engineering bottlenecks, and generates contextual engineering insights.
+
 <br />
 <br />
-<!-- <a href="https://github.com/abrahamjust/REPOSITORY_NAME"><strong>Explore the Project »</strong></a> -->
+
+<!-- <a href="https://github.com/abrahamjust/gitinsight"><strong>Explore the Project »</strong></a> -->
+
 <br />
 <br />
+
 <!-- <a href="LIVE_DEMO_LINK">View Demo</a> -->
+
 </p>
 
 </div>
@@ -22,6 +29,7 @@ An AI-assisted software repository analytics platform that imports GitHub reposi
 ---
 
 <details>
+
   <summary>Table of Contents</summary>
 
 1. [About The Project](#about-the-project)
@@ -42,25 +50,50 @@ An AI-assisted software repository analytics platform that imports GitHub reposi
 
 # About The Project
 
-Repo Intelligence is an AI-assisted software engineering analytics platform that transforms raw GitHub repository data into actionable engineering insights.
+**GitInsight** is an AI-assisted software repository analytics platform that transforms raw GitHub repository data into actionable engineering insights.
 
-Instead of simply displaying repository statistics, the platform continuously analyzes commits, pull requests, issues, reviews, releases, and contributor activity to generate repository health metrics, detect development bottlenecks, identify collaboration patterns, and produce AI-assisted summaries for maintainers and developers.
+Instead of simply displaying repository statistics, GitInsight analyzes commits, pull requests, issues, reviews, releases, and contributor activity to generate repository health metrics, identify engineering bottlenecks, measure collaboration patterns, and provide AI-assisted explanations of repository health.
 
-GitHub serves as the external data source, while MongoDB stores imported repository snapshots. The Repository Intelligence Engine processes this data into engineering metrics, Redis accelerates dashboard performance through caching, and OpenAI generates explainable insights based on computed analytics.
+GitHub acts as the external data source, while MongoDB stores imported repository data. The Repository Intelligence Engine processes this data into structured engineering metrics and health assessments. Redis is used for caching analytics results, while BullMQ enables repository synchronization to run as background jobs without blocking API requests.
 
-The project demonstrates modern full-stack software engineering concepts including REST APIs, NoSQL databases, caching, data analytics, AI integration, authentication, and scalable backend architecture.
+Gemini is used to generate contextual explanations and recommendations based on the computed repository analytics.
+
+The project demonstrates full-stack software engineering concepts including REST APIs, authentication, NoSQL database design, caching, background job processing, data analytics, GitHub API integration, and AI-assisted engineering intelligence.
 
 ---
 
 # Features
 
+## Authentication
+
+- Email and password authentication
+- Session-based authentication
+- Protected API routes
+- User-scoped repository access
+- Secure server-side credential handling
+
 ## Repository Import
 
-- Import any public GitHub repository
-- GitHub OAuth authentication
-- Import repositories from authenticated users
-- Automatic synchronization with GitHub
-- Store repository snapshots in MongoDB
+- Import public GitHub repositories
+- Retrieve repository metadata
+- Import commits
+- Import pull requests
+- Import issues
+- Import contributors
+- Import releases
+- Import pull request reviews
+- Store imported data in MongoDB
+
+## Repository Synchronization
+
+- Synchronize previously imported repositories
+- Incremental commit synchronization
+- Incremental pull request synchronization
+- Duplicate prevention
+- Background synchronization using BullMQ
+- Synchronization status tracking
+- Failed synchronization handling
+- Redis cache invalidation after synchronization
 
 ## Repository Analytics
 
@@ -68,57 +101,55 @@ The project demonstrates modern full-stack software engineering concepts includi
 - Pull request analytics
 - Issue analytics
 - Contributor analytics
-- Release history analysis
-- Branch analytics
-- Language statistics
-- Repository growth trends
-
-## Repository Intelligence Engine
-
-- Repository Health Score
-- Development velocity analysis
-- Code review efficiency
+- Release analytics
+- Pull request review analytics
+- Development activity trends
+- Collaboration metrics
 - Issue resolution metrics
-- Contributor diversity analysis
-- Activity trend analysis
-- Repository maturity assessment
+- Contributor concentration analysis
+- Review coverage analysis
+
+## Repository Health Engine
+
+- Overall repository health score
+- Activity health assessment
+- Collaboration health assessment
+- Issue health assessment
+- Contributor health assessment
+- Release health assessment
+- Review health assessment
+- Health confidence estimation
+- Dimension-level health scoring
 
 ## Bottleneck Detection
 
-- Long-running pull requests
-- Stale issues
-- Review delays
-- Knowledge concentration detection
-- Low contributor activity
-- Repository maintenance risk
-- Inactive branches
+- Repository inactivity detection
+- Prolonged inactivity detection
+- Low pull request merge rate detection
+- Slow pull request merging
+- Low issue closure rate
+- Low bus factor
+- Top contributor dependency
+- Contributor concentration
+- Low review coverage
+- Reviewer concentration
 
 ## AI-Assisted Insights
 
-- Repository summaries
-- Engineering recommendations
-- Repository Q&A
-- Weekly development summaries
-- Contributor summaries
 - Repository health explanations
-- Trend interpretation
-
-## Dashboard
-
-- Interactive analytics dashboard
-- Health overview
-- Charts and visualizations
-- Repository comparison
-- Contributor leaderboard
-- AI Insights panel
+- Key engineering findings
+- Context-aware repository analysis
+- Engineering recommendations
+- Analytics-grounded AI explanations
 
 ## Performance
 
-- Redis caching
-- Optimized MongoDB queries
-- Fast dashboard loading
-- Cached AI summaries
+- Redis analytics caching
+- Cached AI-generated insights
 - Background repository synchronization
+- Incremental synchronization for commits and pull requests
+- MongoDB persistence
+- Repository-scoped analytics caching
 
 ---
 
@@ -131,24 +162,30 @@ The project demonstrates modern full-stack software engineering concepts includi
 - MongoDB
 - Mongoose
 - Redis
+- BullMQ
+- ioredis
 - GitHub REST API
-- OpenAI API
-- JWT Authentication
-- GitHub OAuth
+- Gemini API
+- Passport.js
+- Passport Local
+- Express Session
+- bcryptjs
 
 ## Frontend
 
 - React
 - Vite
 - Tailwind CSS
-- Chart.js / Recharts
+- Recharts / Chart.js
 - Axios
 
 ## Development
 
 - JavaScript (ES6)
 - REST APIs
-- MVC Architecture
+- Layered Architecture
+- NoSQL Database Design
+- Background Job Processing
 - Git
 - GitHub
 
@@ -157,44 +194,189 @@ The project demonstrates modern full-stack software engineering concepts includi
 # System Architecture
 
 ```text
-                 GitHub API
-                      │
-                      ▼
-          Repository Import Engine
-                      │
-                      ▼
-                 MongoDB Database
-                      │
-                      ▼
-      Repository Intelligence Engine
-                      │
-      ┌───────────────┼────────────────┐
-      ▼               ▼                ▼
- Commit Analyzer   Issue Analyzer   PR Analyzer
-      ▼               ▼                ▼
- Contributor Analyzer  Trend Engine  Health Engine
-                      │
-                      ▼
-             Bottleneck Detector
-                      │
-                      ▼
-              Repository Context
-                      │
-                      ▼
-               OpenAI Integration
-                      │
-                      ▼
-                 Redis Cache
-                      │
-                      ▼
-                React Dashboard
+                           ┌──────────────────┐
+                           │    GitHub API    │
+                           └────────┬─────────┘
+                                    │
+                                    ▼
+                     ┌──────────────────────────┐
+                     │   Repository Import /    │
+                     │   Synchronization Layer  │
+                     └────────────┬─────────────┘
+                                  │
+                                  ▼
+                       ┌─────────────────────┐
+                       │      MongoDB        │
+                       │                     │
+                       │ Repositories        │
+                       │ Commits             │
+                       │ Pull Requests       │
+                       │ Issues              │
+                       │ Contributors        │
+                       │ Releases            │
+                       │ Reviews             │
+                       └──────────┬──────────┘
+                                  │
+                                  ▼
+                  ┌───────────────────────────────┐
+                  │   Repository Intelligence     │
+                  │           Engine              │
+                  └───────────────┬───────────────┘
+                                  │
+             ┌────────────────────┼────────────────────┐
+             │                    │                    │
+             ▼                    ▼                    ▼
+      ┌─────────────┐     ┌──────────────┐     ┌──────────────┐
+      │   Activity  │     │ Collaboration│     │    Issues    │
+      │   Analyzer  │     │   Analyzer   │     │   Analyzer   │
+      └──────┬──────┘     └──────┬───────┘     └──────┬───────┘
+             │                    │                    │
+             └────────────────────┼────────────────────┘
+                                  │
+                    ┌─────────────┴─────────────┐
+                    │                           │
+                    ▼                           ▼
+             ┌──────────────┐          ┌─────────────────┐
+             │ Health Engine│          │   Bottleneck    │
+             │              │          │    Detector     │
+             └──────┬───────┘          └────────┬────────┘
+                    │                           │
+                    └─────────────┬─────────────┘
+                                  │
+                                  ▼
+                      ┌────────────────────────┐
+                      │     AI Context Builder │
+                      └────────────┬───────────┘
+                                   │
+                                   ▼
+                      ┌────────────────────────┐
+                      │    Gemini Integration  │
+                      └────────────┬───────────┘
+                                   │
+                                   ▼
+                         ┌──────────────────┐
+                         │   Redis Cache    │
+                         └────────┬─────────┘
+                                  │
+                                  ▼
+                         ┌──────────────────┐
+                         │  React Frontend  │
+                         │    Dashboard     │
+                         └──────────────────┘
+
+
+                     Background Synchronization
+
+                            API Request
+                                   │
+                                   ▼
+                            ┌─────────────┐
+                            │   BullMQ    │
+                            │    Queue    │
+                            └──────┬──────┘
+                                   │
+                                   ▼
+                            ┌─────────────┐
+                            │ Sync Worker │
+                            └──────┬──────┘
+                                   │
+                                   ▼
+                     GitHub API → MongoDB → Redis
+
 ```
+# Backend Architecture
+
+GitInsight follows a layered backend architecture:
+
+```text
+Routes
+   │
+   ▼
+Controllers
+   │
+   ▼
+Services
+   │
+   ▼
+Repositories
+   │
+   ▼
+Models
+   │
+   ▼
+MongoDB
+```
+
+### Routes
+
+Define API endpoints and connect requests to controllers.
+
+### Controllers
+
+Handle HTTP requests, authentication checks, validation, and responses.
+
+### Services
+
+Contain application and business logic such as repository synchronization, analytics generation, health assessment, bottleneck detection, caching, and AI integration.
+
+### Repositories
+
+Encapsulate database access and MongoDB queries.
+
+### Models
+
+Define MongoDB/Mongoose schemas and data structures.
+
+---
+
+# Background Synchronization
+
+Repository synchronization is handled asynchronously using BullMQ and Redis.
+
+```text
+Frontend
+   │
+   │ POST /repositories/:id/sync
+   ▼
+Express API
+   │
+   ▼
+Sync Service
+   │
+   ▼
+BullMQ Queue
+   │
+   ▼
+Background Worker
+   │
+   ├── Fetch GitHub data
+   ├── Update MongoDB
+   ├── Calculate synchronization results
+   ├── Invalidate Redis cache
+   └── Update synchronization status
+```
+
+Repositories transition through synchronization states:
+
+```text
+pending
+   ↓
+processing
+   ↓
+completed
+
+processing
+   ↓
+failed
+```
+
+This prevents long-running GitHub API operations from blocking HTTP requests.
 
 ---
 
 # Getting Started
 
-Follow these steps to run the project locally.
+Follow these steps to run GitInsight locally.
 
 ## Prerequisites
 
@@ -202,8 +384,8 @@ Follow these steps to run the project locally.
 - npm
 - MongoDB
 - Redis
-- GitHub Developer Account
-- OpenAI API Key (or your llm provider api key of your choice)
+- GitHub Personal Access Token
+- Gemini API Key
 
 ---
 
@@ -218,47 +400,50 @@ git clone https://github.com/abrahamjust/gitinsight.git
 ### Navigate into the project
 
 ```bash
-cd repo-intelligence
+cd gitinsight
 ```
 
-### Install dependencies
-
-Backend
+### Install backend dependencies
 
 ```bash
 cd backend
 npm install
 ```
 
-Frontend
+### Install frontend dependencies
 
 ```bash
-cd frontend
+cd ../frontend
 npm install
 ```
 
 ---
 
-### Create a `.env` file
+## Environment Variables
+
+Create a `.env` file inside the backend directory.
 
 ```env
-PORT=3000
+SERVER_PORT=3000
 
-MONGO_URI=your_mongodb_connection_string
+MONGODB_URI=your_mongodb_connection_string
 
 REDIS_URL=your_redis_connection_string
 
-JWT_SECRET=your_secret_key
+SESSION_SECRET=your_session_secret
 
-GITHUB_CLIENT_ID=your_client_id
-GITHUB_CLIENT_SECRET=your_client_secret
+GITHUB_TOKEN=your_github_personal_access_token
 
-OPENAI_API_KEY=your_openai_api_key
+GEMINI_API_KEY=your_gemini_api_key
 ```
+
+> **Important:** Never expose `GITHUB_TOKEN`, `GEMINI_API_KEY`, or `SESSION_SECRET` in the frontend.
 
 ---
 
-### Start MongoDB
+## Start MongoDB
+
+Make sure MongoDB is running locally or use a MongoDB deployment.
 
 ```bash
 mongod
@@ -266,7 +451,9 @@ mongod
 
 ---
 
-### Start Redis
+## Start Redis
+
+Make sure Redis is running.
 
 ```bash
 redis-server
@@ -274,7 +461,9 @@ redis-server
 
 ---
 
-### Run the backend
+## Run the Backend
+
+From the backend directory:
 
 ```bash
 npm run dev
@@ -282,7 +471,19 @@ npm run dev
 
 ---
 
-### Run the frontend
+## Run the Synchronization Worker
+
+The BullMQ worker runs as a separate process.
+
+```bash
+node src/workers/repositorySync.worker.js
+```
+
+---
+
+## Run the Frontend
+
+From the frontend directory:
 
 ```bash
 npm run dev
@@ -290,7 +491,7 @@ npm run dev
 
 ---
 
-### Open
+## Open GitInsight
 
 ```text
 http://localhost:5173
@@ -300,23 +501,33 @@ http://localhost:5173
 
 # Usage
 
-## Import Repository
+## 1. Create an Account
 
-- Paste a GitHub repository URL
-
-or
-
-- Login with GitHub and select repositories
+Register using an email address and password.
 
 ---
 
-## Analyze Repository
+## 2. Import a Repository
 
-The system automatically imports
+Provide the URL of a public GitHub repository.
+
+Example:
+
+```text
+https://github.com/facebook/react
+```
+
+GitInsight retrieves repository metadata and associated development data.
+
+---
+
+## 3. Analyze Repository
+
+The platform imports:
 
 - Repository metadata
 - Commits
-- Pull Requests
+- Pull requests
 - Issues
 - Reviews
 - Releases
@@ -324,75 +535,187 @@ The system automatically imports
 
 ---
 
-## View Analytics
+## 4. View Repository Analytics
 
-Explore
+Explore:
 
-- Repository Health
-- Commit trends
-- Contributor statistics
-- Issue analytics
+- Repository activity
 - Pull request metrics
-- Repository growth
+- Issue metrics
+- Contributor statistics
+- Review metrics
+- Repository health
+- Engineering bottlenecks
 
 ---
 
-## AI Insights
+## 5. View AI-Assisted Insights
 
-Generate
+GitInsight uses the computed repository analytics as context for Gemini to generate:
 
-- Repository summaries
-- Engineering recommendations
 - Repository health explanations
-- Ask repository-specific questions
-- Development trend analysis
+- Key findings
+- Engineering recommendations
+- Contextual development insights
 
 ---
 
-## Compare Repositories
+## 6. Synchronize Repository
 
-Compare multiple repositories based on
+Previously imported repositories can be synchronized with GitHub.
 
-- Health Score
-- Development velocity
-- Contributor diversity
-- Issue resolution
-- Pull request efficiency
+Synchronization occurs in the background, allowing the API to return immediately while the worker processes the repository.
 
 ---
 
 # Repository Intelligence Engine
 
-The Repository Intelligence Engine is the core component of the platform.
+The Repository Intelligence Engine is the core analytical component of GitInsight.
 
-It transforms raw GitHub repository events into structured engineering intelligence.
+It transforms raw GitHub development data into structured engineering intelligence.
 
-### Modules
+## Modules
 
 - Repository Import Engine
-- Repository Analyzer
+- Repository Synchronization Engine
 - Commit Analyzer
 - Pull Request Analyzer
 - Issue Analyzer
 - Contributor Analyzer
-- Trend Engine
+- Release Analyzer
+- Review Analyzer
+- Activity Analyzer
+- Collaboration Analyzer
 - Health Engine
 - Bottleneck Detection Engine
 - AI Context Builder
 - AI Insight Generator
 
-### Generated Metrics
+---
 
-- Repository Health Score
-- Commit Frequency
-- Development Velocity
-- Average Merge Time
-- Average Issue Resolution Time
-- Contributor Diversity
-- Repository Activity Trend
-- Review Efficiency
-- Knowledge Concentration
-- Repository Maintenance Risk
+## Generated Metrics
+
+### Activity
+
+- Total commits
+- Recent commit activity
+- Commits per week
+- Contributor activity
+- Inactivity periods
+- Activity trends
+
+### Pull Requests
+
+- Total pull requests
+- Open / closed pull requests
+- Merged pull requests
+- Merge rate
+- Average time to merge
+- Median time to merge
+- Pull request size
+- Changed files
+- Recent pull request activity
+
+### Issues
+
+- Total issues
+- Open / closed issues
+- Issue closure rate
+- Average resolution time
+- Median resolution time
+- Average comments
+- Issue backlog
+
+### Contributors
+
+- Total contributors
+- Total contributions
+- Top contributor contribution share
+- Top-three contributor share
+- Contributor concentration
+- Herfindahl-Hirschman Index (HHI)
+- Estimated bus factor
+
+### Reviews
+
+- Total reviews
+- Unique reviewers
+- Review coverage
+- Pull requests without reviews
+- Approval count
+- Change-request count
+- Comment count
+- Average time to first review
+- Median time to first review
+- Reviewer concentration
+
+### Health
+
+The platform calculates health scores across multiple repository dimensions:
+
+- Activity
+- Collaboration
+- Issues
+- Contributors
+- Releases
+- Reviews
+
+These dimensions are combined into an overall repository health score.
+
+---
+
+# Bottleneck Detection Engine
+
+The Bottleneck Detection Engine identifies potential engineering bottlenecks from repository analytics.
+
+Current detection categories include:
+
+- Repository Inactivity
+- Prolonged Inactivity
+- Low PR Merge Rate
+- Slow PR Merging
+- Low Issue Closure Rate
+- Low Bus Factor
+- Top Contributor Dependency
+- Contributor Concentration
+- Low Review Coverage
+- Reviewer Concentration
+
+Each detected bottleneck is assigned a severity level such as:
+
+- Critical
+- Warning
+
+The detected bottlenecks are then passed into the AI context used for generating repository explanations and recommendations.
+
+---
+
+# Caching
+
+Redis is used to improve analytics performance.
+
+```text
+Analytics Request
+      │
+      ▼
+ Check Redis Cache
+      │
+ ┌────┴─────┐
+ │          │
+Hit        Miss
+ │          │
+ ▼          ▼
+Return    Generate
+Result    Analytics
+              │
+              ▼
+         Store in Redis
+              │
+              ▼
+            Return
+```
+
+Analytics results and AI-generated insights are cached to reduce repeated computation and unnecessary AI API requests.
 
 ---
 
@@ -400,11 +723,22 @@ It transforms raw GitHub repository events into structured engineering intellige
 
 ## Core Platform
 
-- [x] GitHub OAuth
+- [x] Email/password authentication
 - [x] Public repository import
 - [x] MongoDB integration
 - [x] Repository synchronization
-- [x] Repository dashboard
+- [x] Repository ownership checks
+- [x] Background synchronization
+
+## Data Ingestion
+
+- [x] Repository metadata
+- [x] Commit ingestion
+- [x] Pull request ingestion
+- [x] Issue ingestion
+- [x] Contributor ingestion
+- [x] Release ingestion
+- [x] Pull request review ingestion
 
 ## Analytics
 
@@ -413,54 +747,76 @@ It transforms raw GitHub repository events into structured engineering intellige
 - [x] Issue analytics
 - [x] Contributor analytics
 - [x] Release analytics
-- [x] Trend analysis
+- [x] Review analytics
+- [x] Activity trends
+- [x] Collaboration metrics
 
 ## Repository Intelligence Engine
 
 - [x] Repository Health Score
-- [x] Development velocity
-- [x] Contributor diversity
+- [x] Multi-dimensional health analysis
+- [x] Contributor concentration analysis
+- [x] Bus factor estimation
+- [x] Review efficiency analysis
 - [x] Bottleneck detection
-- [x] Repository maturity analysis
+- [x] AI context generation
 
 ## AI Features
 
-- [x] Repository summaries
-- [x] AI recommendations
-- [x] Repository Q&A
-- [x] Weekly summaries
-- [x] Health explanations
+- [x] Repository health explanations
+- [x] AI-assisted findings
+- [x] Engineering recommendations
+- [x] Analytics-grounded AI insights
 
 ## Performance
 
 - [x] Redis caching
+- [x] Cached analytics
+- [x] Cached AI insights
 - [x] Background synchronization
-- [x] Dashboard optimization
+- [x] Incremental commit synchronization
+- [x] Incremental pull request synchronization
+
+## Frontend
+
+- [ ] Authentication interface
+- [ ] Repository management interface
+- [ ] Repository dashboard
+- [ ] Health visualization
+- [ ] Analytics charts
+- [ ] Bottleneck visualization
+- [ ] AI insights interface
+- [ ] Synchronization status UI
+- [ ] Responsive design
 
 ## Future Improvements
 
-- [ ] Support GitLab repositories
+- [ ] GitHub OAuth
+- [ ] Support private repositories
+- [ ] GitLab integration
 - [ ] Bitbucket integration
-- [ ] Team collaboration dashboard
 - [ ] Predictive repository health forecasting
 - [ ] CI/CD analytics
 - [ ] Code ownership analysis
-- [ ] Email reports
-- [ ] Slack integration
 - [ ] Repository benchmarking
-- [ ] Custom analytics plugins
+- [ ] Team collaboration analytics
+- [ ] Scheduled reports
+- [ ] Slack integration
+- [ ] Email reports
 
 ---
 
 # Acknowledgements
 
 - GitHub REST API
-- OpenAI
+- Google Gemini
 - MongoDB
 - Redis
+- BullMQ
 - React
 - Express.js
 - Node.js
+- Passport.js
 
 ---
 
@@ -478,6 +834,6 @@ GitHub: https://github.com/abrahamjust
 
 Email: abrahamjust@gmail.com
 
-<!-- Project Link: https://github.com/abrahamjust/repo-intelligence -->
+<!-- Project Link: https://github.com/abrahamjust/gitinsight -->
 
 <p align="right">(<a href="#top">back to top</a>)</p>
