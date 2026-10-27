@@ -5,7 +5,6 @@ const repositorySchema = new mongoose.Schema(
         githubId: {
             type: Number,
             required: true,
-            unique: true
         },
 
         owner: {
@@ -117,6 +116,17 @@ const repositorySchema = new mongoose.Schema(
         timestamps: true,
     }
 )
+
+// each user can import the same GitHub repository independently
+repositorySchema.index(
+    {
+        userId: 1,
+        githubId: 1,
+    },
+    {
+        unique: true,
+    }
+);
 
 const Repository = mongoose.model("Repository", repositorySchema);
 

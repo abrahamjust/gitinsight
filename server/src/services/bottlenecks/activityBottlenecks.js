@@ -46,7 +46,7 @@ function detectActivityBottlenecks(activity, health) {
     }
 
     if (
-        activity.trend?.direction === "declining"
+        activity.trend?.direction === "down"
     ) {
         bottlenecks.push({
             type: "declining_activity",

@@ -3,14 +3,9 @@ import * as repositoryRepository from "../repositories/repositoryRepository.js";
 
 export { getAnalytics }
 
+// behind requireAuth, so req.user is always set
 async function getAnalytics(req, res) {
     try {
-        if (!req.user) {
-            return res.status(401).json({
-                message: "Authentication required"
-            });
-        }
-
         const { repositoryId } = req.params;
         const userId = req.user._id;
 
@@ -26,6 +21,12 @@ async function getAnalytics(req, res) {
         res.status(200).json(analytics);
 
     } catch (error) {
+        if (error.name === "CastError") {
+            return res.status(404).json({
+                message: "Repository not found"
+            });
+        }
+
         console.error("Analytics error:", error);
 
         res.status(500).json({

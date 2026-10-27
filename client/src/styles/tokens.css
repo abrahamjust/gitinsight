@@ -1,0 +1,121 @@
+/*
+ * Design tokens.
+ * Light = warm paper + ink. Dark = espresso + cream (not navy, not black).
+ * Chart series colors were run through a CVD/contrast validator against each
+ * mode's surface; keep the order if you change them.
+ */
+:root {
+  color-scheme: light;
+
+  --font-display: "Bricolage Grotesque", "Avenir Next", "Segoe UI", system-ui, sans-serif;
+  --font-body: "Instrument Sans", "Segoe UI", system-ui, -apple-system, sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, "SFMono-Regular", Menlo, monospace;
+
+  --bg: #f3ead9;
+  --bg-dot: rgba(30, 27, 24, 0.09);
+  --surface: #fffaf1;
+  --surface-2: #f7eedf;
+  --surface-3: #efe3cf;
+  --ink: #1e1b18;
+  --ink-2: #5a524a;
+  --ink-3: #857a6f;
+  --line: #1e1b18;
+  --line-soft: rgba(30, 27, 24, 0.14);
+  --shadow: #1e1b18;
+  --focus: #5b3df5;
+
+  --brand: #5b3df5;
+  --brand-ink: #ffffff;
+  --brand-soft: #e6dfff;
+
+  /* decorative "sticker" accents: always paired with dark ink */
+  --sun: #ffd23f;
+  --lime: #c8f169;
+  --pink: #ffa3d1;
+  --sky: #a8dcff;
+  --peach: #ffbf94;
+  --lilac: #cbbcff;
+  --on-accent: #1e1b18;
+
+  /* health status: reserved, never used as a chart series */
+  --st-excellent: #2fb36b;
+  --st-good: #9bd34a;
+  --st-warning: #ffc233;
+  --st-critical: #ff5a3c;
+  --st-na: #e4dacb;
+
+  /* categorical chart series, fixed order */
+  --c1: #6a4cf0;
+  --c2: #0f9b8e;
+  --c3: #c27a12;
+  --c4: #e2559b;
+  --c-muted: #cfc3b2;
+
+  --radius-sm: 10px;
+  --radius: 16px;
+  --radius-lg: 24px;
+  --border: 2px solid var(--line);
+  --lift: 4px 4px 0 var(--shadow);
+  --lift-sm: 2px 2px 0 var(--shadow);
+  --lift-lg: 6px 6px 0 var(--shadow);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    color-scheme: dark;
+    --bg: #1b1512;
+    --bg-dot: rgba(246, 234, 216, 0.06);
+    --surface: #27201b;
+    --surface-2: #2f2721;
+    --surface-3: #3a3028;
+    --ink: #f6ead8;
+    --ink-2: #cdbda8;
+    --ink-3: #9c8c7b;
+    --line: #e9dac4;
+    --line-soft: rgba(246, 234, 216, 0.14);
+    --shadow: #0c0907;
+    --focus: #ffd23f;
+    --brand: #8a72fa;
+    --brand-ink: #140f0c;
+    --brand-soft: #3a2f5c;
+    --st-excellent: #36c47a;
+    --st-good: #a6dc55;
+    --st-warning: #ffc233;
+    --st-critical: #ff6a4d;
+    --st-na: #4a3f37;
+    --c1: #8a72fa;
+    --c2: #1a9a8d;
+    --c3: #bf8320;
+    --c4: #dc5c9f;
+    --c-muted: #5c4f45;
+  }
+}
+
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --bg: #1b1512;
+  --bg-dot: rgba(246, 234, 216, 0.06);
+  --surface: #27201b;
+  --surface-2: #2f2721;
+  --surface-3: #3a3028;
+  --ink: #f6ead8;
+  --ink-2: #cdbda8;
+  --ink-3: #9c8c7b;
+  --line: #e9dac4;
+  --line-soft: rgba(246, 234, 216, 0.14);
+  --shadow: #0c0907;
+  --focus: #ffd23f;
+  --brand: #8a72fa;
+  --brand-ink: #140f0c;
+  --brand-soft: #3a2f5c;
+  --st-excellent: #36c47a;
+  --st-good: #a6dc55;
+  --st-warning: #ffc233;
+  --st-critical: #ff6a4d;
+  --st-na: #4a3f37;
+  --c1: #8a72fa;
+  --c2: #1a9a8d;
+  --c3: #bf8320;
+  --c4: #dc5c9f;
+  --c-muted: #5c4f45;
+}

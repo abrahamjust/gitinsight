@@ -23,6 +23,20 @@ export {
     generateAnalytics
 }
 
+const CACHE_SECONDS = 600;
+// without an AI explanation, cache briefly so it's retried soon
+const CACHE_SECONDS_WITHOUT_AI = 60;
+
+// only the fields the calculators read; skips commit messages, bodies, etc.
+const PROJECTIONS = {
+    commits: { committedAt: 1, "author.login": 1 },
+    contributors: { login: 1, contributions: 1 },
+    pullRequests: { state: 1, createdAtGithub: 1, mergedAt: 1, additions: 1, deletions: 1, changedFiles: 1 },
+    issues: { state: 1, createdAtGithub: 1, closedAt: 1, comments: 1 },
+    releases: { publishedAtGithub: 1, draft: 1, prerelease: 1 },
+    reviews: { pullRequestId: 1, "reviewer.login": 1, state: 1, submittedAt: 1 },
+};
+
 async function generateAnalytics(repositoryId) {
 
     const cacheKey = `analytics:${repositoryId}`;
@@ -35,13 +49,15 @@ async function generateAnalytics(repositoryId) {
 
     console.log("Analytics cache miss");
 
-    const commits = await commitRepository.findByRepositoryId(repositoryId);
-    const contributors = await contributorRepository.findByRepositoryId(repositoryId);
-    const pullRequests = await pullRequestRepository.findByRepositoryId(repositoryId);
-    const issues = await issueRepository.findByRepositoryId(repositoryId);
-    const releases = await releaseRepository.findByRepositoryId(repositoryId);
-    const reviews = await pullRequestReviewRepository.findByRepositoryId(repositoryId);
-    
+    const [commits, contributors, pullRequests, issues, releases, reviews] = await Promise.all([
+        commitRepository.findByRepositoryId(repositoryId, PROJECTIONS.commits),
+        contributorRepository.findByRepositoryId(repositoryId, PROJECTIONS.contributors),
+        pullRequestRepository.findByRepositoryId(repositoryId, PROJECTIONS.pullRequests),
+        issueRepository.findByRepositoryId(repositoryId, PROJECTIONS.issues),
+        releaseRepository.findByRepositoryId(repositoryId, PROJECTIONS.releases),
+        pullRequestReviewRepository.findByRepositoryId(repositoryId, PROJECTIONS.reviews),
+    ]);
+
     const activity = calculateActivity(commits, contributors);
     const collaboration = calculateCollaboration(pullRequests);
     const issueAnalytics = calculateIssues(issues);
@@ -66,7 +82,15 @@ async function generateAnalytics(repositoryId) {
 
     const aiContext = buildAIContext(analytics, health, bottlenecks);
     
-    const aiExplanation = await generateRepositoryExplanation(aiContext);
+    // the analytics stand on their own; an AI outage shouldn't hide them
+    let aiExplanation = null;
+    let aiError = null;
+    try {
+        aiExplanation = await generateRepositoryExplanation(aiContext);
+    } catch (error) {
+        console.error("AI explanation failed:", error.message);
+        aiError = "The AI explanation is unavailable right now.";
+    }
 
     const result = {
         ...analytics,
@@ -74,9 +98,10 @@ async function generateAnalytics(repositoryId) {
         bottlenecks,
         aiContext,
         aiExplanation,
+        aiError,
     };
 
-    await setCache(cacheKey, result, 600);
+    await setCache(cacheKey, result, aiExplanation ? CACHE_SECONDS : CACHE_SECONDS_WITHOUT_AI);
 
     return result;
 }

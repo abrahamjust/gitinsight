@@ -8,9 +8,76 @@ import * as releaseRepository from "../../repositories/releaseRepository.js";
 import * as pullRequestReviewRepository from "../../repositories/pullRequestReviewRepository.js";
 import { deleteCache } from "../cache/redisService.js";
 
-export { syncRepository };
+export {
+    syncRepository,
+    syncCommits,
+    syncPullRequests,
+    syncIssues,
+    syncContributors,
+    syncReleases,
+};
 
-async function syncRepository(repositoryId, userId) {
+const withRepository = (repository, items) =>
+    items.map(item => ({ ...item, repositoryId: repository._id }));
+
+async function syncCommits(repository, { since = null, onProgress } = {}) {
+    const commits = await githubService.getCommits(repository.url, since, { onProgress });
+    return await commitRepository.upsertMany(withRepository(repository, commits));
+}
+
+// Reviews arrive with their pull requests, so both are written here.
+async function syncPullRequests(repository, { since = null, onProgress } = {}) {
+    const pullRequests = await githubService.getPullRequests(repository.url, since, { onProgress });
+
+    const prResult = await pullRequestRepository.upsertMany(
+        withRepository(repository, pullRequests.map(({ reviews, ...pr }) => pr))
+    );
+
+    const prIds = await pullRequestRepository.findIdsByGithubIds(
+        repository._id,
+        pullRequests.map(pr => pr.githubId)
+    );
+
+    const reviews = pullRequests.flatMap(pr =>
+        pr.reviews.map(review => ({
+            ...review,
+            repositoryId: repository._id,
+            pullRequestId: prIds.get(pr.githubId),
+        }))
+    );
+
+    const reviewResult = await pullRequestReviewRepository.upsertMany(reviews);
+
+    return {
+        ...prResult,
+        reviews: reviewResult,
+    };
+}
+
+async function syncIssues(repository, { since = null, onProgress } = {}) {
+    const issues = await githubService.getIssues(repository.url, since, { onProgress });
+    return await issueRepository.upsertMany(withRepository(repository, issues));
+}
+
+async function syncContributors(repository, { onProgress } = {}) {
+    const contributors = await githubService.getContributors(repository.url, { onProgress });
+    return await contributorRepository.upsertMany(withRepository(repository, contributors));
+}
+
+async function syncReleases(repository, { onProgress } = {}) {
+    const releases = await githubService.getReleases(repository.url, { onProgress });
+    return await releaseRepository.upsertMany(withRepository(repository, releases));
+}
+
+/**
+ * Full or incremental sync. Commits, PRs and issues only fetch what changed
+ * since the previous successful sync; contributors and releases are small
+ * and refreshed in full. All resources are fetched concurrently.
+ *
+ * onProgress receives { commits, pullRequests, issues, contributors, releases }
+ * with the number of items fetched so far.
+ */
+async function syncRepository(repositoryId, userId, { onProgress } = {}) {
     const repository = await repositoryRepository.findByIdAndUserId(
         repositoryId,
         userId
@@ -20,12 +87,10 @@ async function syncRepository(repositoryId, userId) {
         throw new Error("Repository not found");
     }
 
-    const previousLastSynced = repository.lastSynced;
+    const since = repository.lastSynced;
     const syncStartedAt = new Date();
 
-    const repositoryData = await githubService.getRepository(
-        repository.url
-    );
+    const repositoryData = await githubService.getRepository(repository.url);
 
     await repositoryRepository.updateByIdAndUserId(
         repositoryId,
@@ -36,160 +101,26 @@ async function syncRepository(repositoryId, userId) {
         }
     );
 
-    const commitData = await githubService.getCommits(repository.url, previousLastSynced);
+    const progress = {
+        commits: 0,
+        pullRequests: 0,
+        issues: 0,
+        contributors: 0,
+        releases: 0,
+    };
 
-    const commits = commitData.map(commit => ({
-        ...commit,
-        repositoryId: repository._id,
-    }));
+    const track = (key) => (count) => {
+        progress[key] = count;
+        onProgress?.({ ...progress });
+    };
 
-    const existingShas = await commitRepository.findExistingShas(
-        repository._id,
-        commits.map(commit => commit.sha)
-    );
-
-    const newCommits = commits.filter(
-        commit => !existingShas.has(commit.sha)
-    );
-
-    if (newCommits.length > 0) {
-        await commitRepository.createMany(newCommits);
-    }
-
-    const prData = await githubService.getPullRequests(
-        repository.url,
-        previousLastSynced
-    );
-
-    const pullRequests = prData.map(pr => ({
-        ...pr,
-        repositoryId: repository._id,
-    }));
-
-    const existingPRIds =
-        await pullRequestRepository.findExistingGithubIds(
-            repository._id,
-            pullRequests.map(pr => pr.githubId)
-        );
-
-    const newPullRequests = pullRequests.filter(
-        pr => !existingPRIds.has(pr.githubId)
-    );
-
-    if (newPullRequests.length > 0) {
-        await pullRequestRepository.createMany(newPullRequests);
-    }
-
-    const issueData = await githubService.getIssues(
-        repository.url
-    );
-
-    const issues = issueData.map(issue => ({
-        ...issue,
-        repositoryId: repository._id,
-    }));
-
-    const existingIssueIds =
-        await issueRepository.findExistingGithubIds(
-            repository._id,
-            issues.map(issue => issue.githubId)
-        );
-
-    const newIssues = issues.filter(
-        issue => !existingIssueIds.has(issue.githubId)
-    );
-
-    if (newIssues.length > 0) {
-        await issueRepository.createMany(newIssues);
-    }
-
-    const contributorData =
-        await githubService.getContributors(repository.url);
-
-    const contributors = contributorData.map(contributor => ({
-        ...contributor,
-        repositoryId: repository._id,
-    }));
-
-    const existingContributorIds =
-        await contributorRepository.findExistingGithubIds(
-            repository._id,
-            contributors.map(contributor => contributor.githubId)
-        );
-
-    const newContributors = contributors.filter(
-        contributor =>
-            !existingContributorIds.has(contributor.githubId)
-    );
-
-    if (newContributors.length > 0) {
-        await contributorRepository.createMany(newContributors);
-    }
-
-    const releaseData =
-        await githubService.getReleases(repository.url);
-
-    const releases = releaseData.map(release => ({
-        ...release,
-        repositoryId: repository._id,
-    }));
-
-    const existingReleaseIds =
-        await releaseRepository.findExistingGithubIds(
-            repository._id,
-            releases.map(release => release.githubId)
-        );
-
-    const newReleases = releases.filter(
-        release =>
-            !existingReleaseIds.has(release.githubId)
-    );
-
-    if (newReleases.length > 0) {
-        await releaseRepository.createMany(newReleases);
-    }
-
-    const allPullRequests =
-        await pullRequestRepository.findByRepositoryId(
-            repository._id
-        );
-
-    const reviewsToInsert = [];
-
-    for (const pullRequest of allPullRequests) {
-        const reviews =
-            await githubService.getPullRequestReviews(
-                repository.url,
-                pullRequest.number
-            );
-
-        for (const review of reviews) {
-            reviewsToInsert.push({
-                repositoryId: repository._id,
-                pullRequestId: pullRequest._id,
-                ...review,
-            });
-        }
-    }
-
-    if (reviewsToInsert.length > 0) {
-        const existingReviewIds =
-            await pullRequestReviewRepository.findExistingGithubIds(
-                repository._id,
-                reviewsToInsert.map(review => review.githubId)
-            );
-
-        const newReviews = reviewsToInsert.filter(
-            review =>
-                !existingReviewIds.has(review.githubId)
-        );
-
-        if (newReviews.length > 0) {
-            await pullRequestReviewRepository.createMany(
-                newReviews
-            );
-        }
-    }
+    const [commits, pullRequests, issues, contributors, releases] = await Promise.all([
+        syncCommits(repository, { since, onProgress: track("commits") }),
+        syncPullRequests(repository, { since, onProgress: track("pullRequests") }),
+        syncIssues(repository, { since, onProgress: track("issues") }),
+        syncContributors(repository, { onProgress: track("contributors") }),
+        syncReleases(repository, { onProgress: track("releases") }),
+    ]);
 
     await deleteCache(`analytics:${repositoryId}`);
 
@@ -204,11 +135,12 @@ async function syncRepository(repositoryId, userId) {
     return {
         repositoryId,
         imported: {
-            commits: newCommits.length,
-            pullRequests: newPullRequests.length,
-            issues: newIssues.length,
-            contributors: newContributors.length,
-            releases: newReleases.length,
+            commits: commits.inserted,
+            pullRequests: pullRequests.inserted,
+            reviews: pullRequests.reviews.inserted,
+            issues: issues.inserted,
+            contributors: contributors.inserted,
+            releases: releases.inserted,
         },
     };
 }

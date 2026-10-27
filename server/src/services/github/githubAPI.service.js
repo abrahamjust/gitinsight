@@ -1,569 +1,413 @@
-import axios from "axios";
-import {env} from "../../config/env.js";
+import { env } from "../../config/env.js";
+import {
+    GitHubError,
+    graphql,
+    restGet,
+    restPaginate,
+} from "./githubClient.js";
 
 export {
+    parseRepositoryUrl,
     getRepository,
     getCommits,
     getPullRequests,
     getIssues,
     getContributors,
     getReleases,
-    getPullRequestReviews
-}
+};
 
-function extractRepositoryInfo(repositoryUrl) {
-    const url = new URL(repositoryUrl);
-    
-    if (url.hostname !== "github.com") {
-        throw new Error("Invalid Github repository URL");
+// Caps each resource on a sync so huge repositories (tens of thousands of
+// PRs/issues) can't exhaust the hourly rate limit. Items are fetched newest
+// first, so the cap keeps the most recent history. 0 = no cap.
+const MAX_ITEMS = env.GITHUB_MAX_ITEMS_PER_RESOURCE > 0
+    ? env.GITHUB_MAX_ITEMS_PER_RESOURCE
+    : Infinity;
+
+function parseRepositoryUrl(repositoryUrl) {
+    let url;
+    try {
+        url = new URL(repositoryUrl);
+    } catch {
+        throw new GitHubError("Invalid GitHub repository URL", { status: 400 });
     }
 
-    const pathParts = url.pathname.split("/").filter(part => part.length > 0);
+    const pathParts = url.pathname.split("/").filter(Boolean);
 
-    if (pathParts.length < 2) {
-        throw new Error("Invalid Github repository URL");
+    if (url.hostname.replace(/^www\./, "") !== "github.com" || pathParts.length < 2) {
+        throw new GitHubError("Invalid GitHub repository URL", { status: 400 });
     }
-
-    const owner = pathParts[0];
-    const repo = pathParts[1];
 
     return {
-        owner, repo,
-    }
+        owner: pathParts[0],
+        repo: pathParts[1].replace(/\.git$/, ""),
+    };
 }
-
-// async function githubRequest(url, config = {}) {
-//     try {
-//         return await axios.get(url, {
-//             ...config,
-//             headers: {
-//                 Authorization: `Bearer ${env.GITHUB_TOKEN}`,
-//                 Accept: "application/vnd.github+json",
-//                 ...config.headers,
-//             },
-//         });
-//     } catch (error) {
-//         if (error.response?.status === 404) {
-//             throw new Error("GitHub resource not found");
-//         }
-
-//         if (error.response?.status === 403) {
-//             throw new Error("GitHub API rate limit exceeded");
-//         }
-
-//         throw error;
-//     }
-// }
 
 async function getRepository(repositoryUrl) {
-    try {
-        const { owner, repo } = extractRepositoryInfo(repositoryUrl);
+    const { owner, repo } = parseRepositoryUrl(repositoryUrl);
+    const { data } = await restGet(`/repos/${owner}/${repo}`);
 
-        const response = await axios.get(
-            `https://api.github.com/repos/${owner}/${repo}`,
-            {
-                headers: {
-                    Authorization: `Bearer ${env.GITHUB_TOKEN}`,
-                    Accept: "application/vnd.github+json",
-                },
-            }
+    return {
+        githubId: data.id,
+        owner: data.owner.login,
+        name: data.name,
+        fullName: data.full_name,
+        description: data.description ?? "",
+        url: data.html_url,
+        defaultBranch: data.default_branch,
+        visibility: data.visibility,
+        language: data.language ?? "",
+        topics: data.topics ?? [],
+        stars: data.stargazers_count,
+        forks: data.forks_count,
+        watchers: data.subscribers_count,
+        openIssues: data.open_issues_count,
+        createdAtGithub: data.created_at,
+        updatedAtGithub: data.updated_at,
+        pushedAt: data.pushed_at,
+        ownerAvatar: data.owner.avatar_url,
+    };
+}
+
+async function getCommits(repositoryUrl, since = null, { onProgress } = {}) {
+    const { owner, repo } = parseRepositoryUrl(repositoryUrl);
+
+    let commits;
+    try {
+        commits = await restPaginate(
+            `/repos/${owner}/${repo}/commits`,
+            since ? { since: new Date(since).toISOString() } : {},
+            { maxItems: MAX_ITEMS, onProgress }
         );
-
-        const data = response.data;
-
-        return {
-            githubId: data.id,
-            owner: data.owner.login,
-            name: data.name,
-            fullName: data.full_name,
-            description: data.description,
-            url: data.html_url,
-            defaultBranch: data.default_branch,
-            visibility: data.visibility,
-            language: data.language,
-            topics: data.topics,
-            stars: data.stargazers_count,
-            forks: data.forks_count,
-            watchers: data.subscribers_count,
-            openIssues: data.open_issues_count,
-            createdAtGithub: data.created_at,
-            updatedAtGithub: data.updated_at,
-            pushedAt: data.pushed_at,
-            ownerAvatar: data.owner.avatar_url,
-        };
-
     } catch (error) {
-
-        if (error.response?.status === 404) {
-            throw new Error("Repository not found");
-        }
-
-        if (error.response?.status === 403) {
-            throw new Error("GitHub API rate limit exceeded");
-        }
-
+        // GitHub answers 409 for a repository without any commits
+        if (error.status === 409) return [];
         throw error;
     }
+
+    return commits.map((commit) => ({
+        sha: commit.sha,
+        message: commit.commit.message,
+        author: {
+            login: commit.author?.login ?? null,
+            name: commit.commit.author?.name ?? null,
+            email: commit.commit.author?.email ?? null,
+            avatarUrl: commit.author?.avatar_url ?? null,
+        },
+        committedAt: commit.commit.author?.date,
+        url: commit.html_url,
+    }));
 }
 
-async function getCommits(repositoryUrl, since = null, perPage=100) {
+async function getContributors(repositoryUrl, { onProgress } = {}) {
+    const { owner, repo } = parseRepositoryUrl(repositoryUrl);
+
+    let contributors;
     try {
-        const { owner, repo } = extractRepositoryInfo(repositoryUrl);
-
-        let page = 1;
-        let allCommits = [];
-
-        while (true) {
-            const response = await axios.get(
-                `https://api.github.com/repos/${owner}/${repo}/commits`,
-                {
-                    params: {
-                        page,
-                        per_page: perPage,
-                        ...(since && { since }),
-                    },
-                    headers: {
-                        Authorization: `Bearer ${env.GITHUB_TOKEN}`,
-                        Accept: "application/vnd.github+json",
-                    },
-                }
-            );
-
-            const commits = response.data;
-
-            if (commits.length == 0) {
-                break;
-            }
-
-            allCommits.push(
-                ...commits.map(commit => ({
-                    sha: commit.sha,
-                    message: commit.commit.message,
-                    author: {
-                        login: commit.author?.login ?? null,
-                        name: commit.commit.author?.name ?? null,
-                        email: commit.commit.author?.email ?? null,
-                        avatarUrl: commit.author?.avatar_url ?? null,
-                    },
-                    committedAt: commit.commit.author?.date,
-                    url: commit.html_url,
-                }))
-            );
-
-            if (commits.length < perPage) {
-                break;
-            }
-
-            page++;
-        }
-
-        return allCommits;
+        contributors = await restPaginate(
+            `/repos/${owner}/${repo}/contributors`,
+            {},
+            { onProgress }
+        );
     } catch (error) {
-        if (error.response?.status === 404) {
-            throw new Error("Can't import commits");
-        }
-
-        if (error.response?.status === 403) {
-            throw new Error("GitHub API rate limit exceeded");
-        }
-
+        // very large histories: "contributor list is too large to list via the API"
+        if (error.status === 403 && /too large/i.test(error.message)) return [];
         throw error;
     }
+
+    return contributors
+        .filter((contributor) => contributor.type !== "Bot")
+        .map((contributor) => ({
+            githubId: contributor.id,
+            login: contributor.login,
+            name: null,
+            avatarUrl: contributor.avatar_url ?? null,
+            profileUrl: contributor.html_url ?? null,
+            contributions: contributor.contributions ?? 0,
+        }));
 }
 
-async function getPullRequests(repositoryUrl, since = null, perPage = 100) {
-    try {
-        const { owner, repo } = extractRepositoryInfo(repositoryUrl);
+async function getReleases(repositoryUrl, { onProgress } = {}) {
+    const { owner, repo } = parseRepositoryUrl(repositoryUrl);
 
-        let page = 1;
-        let allPullRequests = [];
+    const releases = await restPaginate(
+        `/repos/${owner}/${repo}/releases`,
+        {},
+        { maxItems: MAX_ITEMS, onProgress }
+    );
 
-        while (true) {
-            const response = await axios.get(
-                `https://api.github.com/repos/${owner}/${repo}/pulls`,
-                {
-                    params: {
-                        state: "all",
-                        sort: "updated",
-                        direction: "desc",
-                        page,
-                        per_page: perPage,
-                    },
-                    headers: {
-                        Authorization: `Bearer ${env.GITHUB_TOKEN}`,
-                        Accept: "application/vnd.github+json",
-                    },
+    return releases.map((release) => ({
+        githubId: release.id,
+        tagName: release.tag_name,
+        name: release.name ?? null,
+        body: release.body ?? null,
+        author: {
+            login: release.author?.login ?? null,
+            avatarUrl: release.author?.avatar_url ?? null,
+        },
+        draft: release.draft ?? false,
+        prerelease: release.prerelease ?? false,
+        createdAtGithub: release.created_at,
+        publishedAtGithub: release.published_at,
+        url: release.html_url,
+    }));
+}
+
+// ---------- GraphQL: pull requests (with reviews) and issues ----------
+
+const REVIEW_FIELDS = `
+    databaseId
+    state
+    submittedAt
+    body
+    url
+    author { login avatarUrl }
+`;
+
+// Diff stats and nested reviews are each cheap, but asking for both in one
+// query makes GitHub ~3x slower per page. So PRs are walked twice in
+// parallel, one query per concern, and merged by databaseId.
+const pullRequestsQuery = (fields) => `
+    query ($owner: String!, $repo: String!, $pageSize: Int!, $cursor: String) {
+        repository(owner: $owner, name: $repo) {
+            pullRequests(
+                first: $pageSize
+                after: $cursor
+                orderBy: { field: UPDATED_AT, direction: DESC }
+            ) {
+                pageInfo { hasNextPage endCursor }
+                nodes { ${fields} }
+            }
+        }
+    }
+`;
+
+const PULL_REQUESTS_QUERY = pullRequestsQuery(`
+    databaseId
+    number
+    title
+    body
+    state
+    createdAt
+    updatedAt
+    closedAt
+    mergedAt
+    url
+    additions
+    deletions
+    changedFiles
+    author { login avatarUrl }
+`);
+
+const PULL_REQUEST_REVIEWS_QUERY = pullRequestsQuery(`
+    databaseId
+    number
+    updatedAt
+    reviews(first: 40) {
+        pageInfo { hasNextPage endCursor }
+        nodes { ${REVIEW_FIELDS} }
+    }
+`);
+
+const MORE_REVIEWS_QUERY = `
+    query ($owner: String!, $repo: String!, $number: Int!, $cursor: String) {
+        repository(owner: $owner, name: $repo) {
+            pullRequest(number: $number) {
+                reviews(first: 100, after: $cursor) {
+                    pageInfo { hasNextPage endCursor }
+                    nodes { ${REVIEW_FIELDS} }
                 }
-            );
+            }
+        }
+    }
+`;
 
-            const pullRequests = response.data;
+const ISSUES_QUERY = `
+    query ($owner: String!, $repo: String!, $pageSize: Int!, $cursor: String, $since: DateTime) {
+        repository(owner: $owner, name: $repo) {
+            issues(
+                first: $pageSize
+                after: $cursor
+                orderBy: { field: UPDATED_AT, direction: DESC }
+                filterBy: { since: $since }
+            ) {
+                pageInfo { hasNextPage endCursor }
+                nodes {
+                    databaseId
+                    number
+                    title
+                    body
+                    state
+                    createdAt
+                    updatedAt
+                    closedAt
+                    url
+                    author { login avatarUrl }
+                    labels(first: 20) { nodes { name } }
+                    comments { totalCount }
+                }
+            }
+        }
+    }
+`;
 
-            if (pullRequests.length == 0) {
+/**
+ * Walks a cursor-paginated GraphQL connection. Heavy pages occasionally time
+ * out on GitHub's side (502/504), so the page size halves and retries.
+ */
+async function paginateConnection({ query, variables, pick, pageSize, stopWhen, onProgress }) {
+    const items = [];
+    let cursor = null;
+    let size = pageSize;
+
+    while (items.length < MAX_ITEMS) {
+        let connection;
+        try {
+            const data = await graphql(query, { ...variables, pageSize: size, cursor });
+            connection = pick(data);
+        } catch (error) {
+            if (error.retryable && size > 10) {
+                size = Math.floor(size / 2);
+                continue;
+            }
+            throw error;
+        }
+
+        let reachedEnd = false;
+        for (const node of connection.nodes) {
+            if (stopWhen?.(node)) {
+                reachedEnd = true;
                 break;
             }
+            items.push(node);
+        }
 
-            let reachedSyncPoint = false;
+        onProgress?.(items.length);
 
-            if (since) {
-                const recentPullRequests = pullRequests.filter(
-                    (pullRequest) => new Date(pullRequest.updated_at) > new Date(since)
+        if (reachedEnd || !connection.pageInfo.hasNextPage) break;
+        cursor = connection.pageInfo.endCursor;
+    }
+
+    return items.slice(0, MAX_ITEMS);
+}
+
+function toReview(node) {
+    return {
+        githubId: node.databaseId,
+        reviewer: {
+            login: node.author?.login ?? null,
+            avatarUrl: node.author?.avatarUrl ?? null,
+        },
+        state: node.state,
+        submittedAt: node.submittedAt,
+        body: node.body || null,
+        url: node.url,
+    };
+}
+
+// PENDING reviews are unsubmitted drafts; they have no submittedAt
+const isSubmitted = (review) => review.state !== "PENDING" && review.submittedAt;
+
+async function remainingReviews(owner, repo, number, cursor) {
+    const reviews = [];
+    while (cursor) {
+        const data = await graphql(MORE_REVIEWS_QUERY, { owner, repo, number, cursor });
+        const connection = data.repository.pullRequest.reviews;
+        reviews.push(...connection.nodes);
+        cursor = connection.pageInfo.hasNextPage ? connection.pageInfo.endCursor : null;
+    }
+    return reviews;
+}
+
+/**
+ * Pull requests updated after `since` (all when null), newest first, each
+ * with its submitted reviews attached as `reviews`. Reviews are fetched in
+ * bulk alongside the PRs, so there's no per-PR request in the common case.
+ */
+async function getPullRequests(repositoryUrl, since = null, { onProgress } = {}) {
+    const { owner, repo } = parseRepositoryUrl(repositoryUrl);
+    const sinceDate = since ? new Date(since) : null;
+
+    const walk = (query, progress) => paginateConnection({
+        query,
+        variables: { owner, repo },
+        pick: (data) => data.repository.pullRequests,
+        pageSize: 50,
+        stopWhen: sinceDate ? (node) => new Date(node.updatedAt) <= sinceDate : null,
+        onProgress: progress,
+    });
+
+    const [nodes, reviewNodes] = await Promise.all([
+        walk(PULL_REQUESTS_QUERY, onProgress),
+        walk(PULL_REQUEST_REVIEWS_QUERY),
+    ]);
+
+    // a PR updated between the two walks may be missing here; it simply gets
+    // no reviews this time and is picked up again on the next sync
+    const reviewsByPr = new Map(reviewNodes.map((node) => [node.databaseId, node.reviews]));
+
+    return Promise.all(
+        nodes.map(async (node) => {
+            const reviews = reviewsByPr.get(node.databaseId);
+            const reviewNodes = [...(reviews?.nodes ?? [])];
+            if (reviews?.pageInfo.hasNextPage) {
+                reviewNodes.push(
+                    ...(await remainingReviews(owner, repo, node.number, reviews.pageInfo.endCursor))
                 );
-
-                if (recentPullRequests.length < pullRequests.length) {
-                    reachedSyncPoint = true;
-                }
-
-                pullRequests.length = 0;
-                pullRequests.push(...recentPullRequests);
-            }
-            
-            const pullRequestDetails = await Promise.all(
-                pullRequests.map(async (pullRequest) => {
-                    const detailResponse = await axios.get(
-                        `https://api.github.com/repos/${owner}/${repo}/pulls/${pullRequest.number}`,
-                        {
-                            headers: {
-                                Authorization: `Bearer ${env.GITHUB_TOKEN}`,
-                                Accept: "application/vnd.github+json",
-                            },
-                        }
-                    );
-
-                    const details = detailResponse.data;
-
-                    return {
-                        githubId: pullRequest.id,
-                        number: pullRequest.number,
-                        title: pullRequest.title,
-                        body: pullRequest.body ?? null,
-
-                        state: pullRequest.state,
-
-                        author: {
-                            login: pullRequest.user?.login ?? null,
-                            avatarUrl: pullRequest.user?.avatar_url ?? null,
-                        },
-
-                        createdAtGithub: pullRequest.created_at,
-                        updatedAtGithub: pullRequest.updated_at,
-                        closedAt: pullRequest.closed_at,
-                        mergedAt: details.merged_at,
-
-                        url: pullRequest.html_url,
-
-                        additions: details.additions ?? 0,
-                        deletions: details.deletions ?? 0,
-                        changedFiles: details.changed_files ?? 0,
-                    };
-                })
-            );
-
-            allPullRequests.push(...pullRequestDetails);
-            
-            if (reachedSyncPoint) {
-                break;
             }
 
-            if (pullRequests.length < perPage) {
-                break;
-            }
-
-            page++;
-        }
-        return allPullRequests;
-    } catch (error) {
-        if (error.response?.status === 404) {
-            throw new Error("Can't import PRs");
-        }
-
-        if (error.response?.status === 403) {
-            throw new Error("GitHub API rate limit exceeded");
-        }
-
-        throw error;
-    }
-}
-
-async function getIssues(repositoryUrl, perPage = 100) {
-    try {
-        const { owner, repo } = extractRepositoryInfo(repositoryUrl);
-
-        let page = 1;
-        let allIssues = [];
-
-        while (true) {
-            const response = await axios.get(
-                `https://api.github.com/repos/${owner}/${repo}/issues`,
-                {
-                    params: {
-                        state: "all",
-                        page,
-                        per_page: perPage,
-                    },
-                    headers: {
-                        Authorization: `Bearer ${env.GITHUB_TOKEN}`,
-                        Accept: "application/vnd.github+json",
-                    },
-                }
-            );
-
-            const issues = response.data;
-
-            if (issues.length === 0) {
-                break;
-            }
-
-            // filter the pull requests, we get those in issues too.
-            const actualIssues = issues.filter(
-                issue => !issue.pull_request
-            );
-
-            allIssues.push(
-                ...actualIssues.map(issue => ({
-                    githubId: issue.id,
-
-                    number: issue.number,
-
-                    title: issue.title,
-
-                    body: issue.body ?? null,
-
-                    state: issue.state,
-
-                    author: {
-                        login: issue.user?.login ?? null,
-                        avatarUrl: issue.user?.avatar_url ?? null,
-                    },
-
-                    labels: issue.labels.map(label => ({
-                        name: label.name,
-                    })),
-
-                    comments: issue.comments ?? 0,
-
-                    createdAtGithub: issue.created_at,
-
-                    updatedAtGithub: issue.updated_at,
-
-                    closedAt: issue.closed_at,
-
-                    url: issue.html_url,
-                }))
-            );
-
-            if (issues.length < perPage) {
-                break;
-            }
-
-            page++;
-        }
-
-        return allIssues;
-    } catch (error) {
-        if (error.response?.status === 404) {
-            throw new Error("Can't import issues");
-        }
-
-        if (error.response?.status === 403) {
-            throw new Error("GitHub API rate limit exceeded");
-        }
-
-        throw error;
-    }
-}
-
-async function getContributors(repositoryUrl, perPage = 100) {
-    try {
-        const { owner, repo } = extractRepositoryInfo(repositoryUrl);
-
-        let page = 1;
-        let allContributors = [];
-
-        while (true) {
-            const response = await axios.get(
-                `https://api.github.com/repos/${owner}/${repo}/contributors`,
-                {
-                    params: {
-                        page,
-                        per_page: perPage,
-                    },
-                    headers: {
-                        Authorization: `Bearer ${env.GITHUB_TOKEN}`,
-                        Accept: "application/vnd.github+json",
-                    },
-                }
-            );
-
-            const contributors = response.data;
-
-            if (contributors.length === 0) {
-                break;
-            }
-
-            const actualContributors = contributors.filter(
-                contributor => contributor.type !== "Bot"
-            );
-
-            allContributors.push(
-                ...actualContributors.map(contributor => ({
-                    githubId: contributor.id,
-                    login: contributor.login,
-                    name: null,
-                    avatarUrl: contributor.avatar_url ?? null,
-                    profileUrl: contributor.html_url ?? null,
-                    contributions: contributor.contributions ?? 0,
-                }))
-            );
-
-            if (contributors.length < perPage) {
-                break;
-            }
-
-            page++;
-        }
-
-        return allContributors;
-    } catch (error) {
-        if (error.response?.status === 404) {
-            throw new Error("Can't import issues");
-        }
-
-        if (error.response?.status === 403) {
-            throw new Error("GitHub API rate limit exceeded");
-        }
-
-        throw error;
-    }
-}
-
-async function getReleases(repositoryUrl, perPage = 100) {
-    try {
-        const { owner, repo } = extractRepositoryInfo(repositoryUrl);
-
-        let page = 1;
-        let allReleases = [];
-
-        while (true) {
-            const response = await axios.get(
-                `https://api.github.com/repos/${owner}/${repo}/releases`,
-                {
-                    params: {
-                        page,
-                        per_page: perPage,
-                    },
-                    headers: {
-                        Authorization: `Bearer ${env.GITHUB_TOKEN}`,
-                        Accept: "application/vnd.github+json",
-                    },
-                }
-            );
-
-            const releases = response.data;
-
-            if (releases.length === 0) {
-                break;
-            }
-
-            allReleases.push(
-                ...releases.map(release => ({
-                    githubId: release.id,
-
-                    tagName: release.tag_name,
-
-                    name: release.name ?? null,
-
-                    body: release.body ?? null,
-
-                    author: {
-                        login: release.author?.login ?? null,
-                        avatarUrl: release.author?.avatar_url ?? null,
-                    },
-
-                    draft: release.draft ?? false,
-
-                    prerelease: release.prerelease ?? false,
-
-                    createdAtGithub: release.created_at,
-
-                    publishedAtGithub: release.published_at,
-
-                    url: release.html_url,
-                }))
-            );
-
-            if (releases.length < perPage) {
-                break;
-            }
-
-            page++;
-        }
-
-        return allReleases;
-    } catch (error) {
-        if (error.response?.status === 404) {
-            throw new Error("Can't import releases data");
-        }
-
-        if (error.response?.status === 403) {
-            throw new Error("GitHub API rate limit exceeded");
-        }
-
-        throw error;
-    }
-}
-
-async function getPullRequestReviews(repositoryUrl, pullRequestNumber) {
-    const { owner, repo } = extractRepositoryInfo(repositoryUrl);
-
-    let page = 1;
-    let allReviews = [];
-
-    while (true) {
-        const response = await axios.get(
-            `https://api.github.com/repos/${owner}/${repo}/pulls/${pullRequestNumber}/reviews`,
-            {
-                params: {
-                    page,
-                    per_page: 100,
+            return {
+                githubId: node.databaseId,
+                number: node.number,
+                title: node.title,
+                body: node.body || null,
+                // GraphQL reports MERGED separately; the model stores open/closed
+                state: node.state === "OPEN" ? "open" : "closed",
+                author: {
+                    login: node.author?.login ?? null,
+                    avatarUrl: node.author?.avatarUrl ?? null,
                 },
-                headers: {
-                    Authorization: `Bearer ${env.GITHUB_TOKEN}`,
-                    Accept: "application/vnd.github+json",
-                },
-            }
-        );
+                createdAtGithub: node.createdAt,
+                updatedAtGithub: node.updatedAt,
+                closedAt: node.closedAt,
+                mergedAt: node.mergedAt,
+                url: node.url,
+                additions: node.additions ?? 0,
+                deletions: node.deletions ?? 0,
+                changedFiles: node.changedFiles ?? 0,
+                reviews: reviewNodes.filter(isSubmitted).map(toReview),
+            };
+        })
+    );
+}
 
-        const reviews = response.data;
+/** Issues (never PRs) updated after `since` (all when null), newest first. */
+async function getIssues(repositoryUrl, since = null, { onProgress } = {}) {
+    const { owner, repo } = parseRepositoryUrl(repositoryUrl);
 
-        if (reviews.length === 0) {
-            break;
-        }
+    const nodes = await paginateConnection({
+        query: ISSUES_QUERY,
+        variables: { owner, repo, since: since ? new Date(since).toISOString() : null },
+        pick: (data) => data.repository.issues,
+        pageSize: 100,
+        onProgress,
+    });
 
-        for (const review of reviews) {
-            allReviews.push({
-                githubId: review.id,
-
-                reviewer: {
-                login: review.user?.login ?? null,
-                avatarUrl: review.user?.avatar_url ?? null,
-                },
-
-                state: review.state,
-
-                submittedAt: review.submitted_at,
-
-                body: review.body ?? null,
-
-                url: review.html_url,
-            });
-        }
-
-        if (reviews.length < 100) {
-            break;
-        }
-
-        page++;
-    }
-
-    return allReviews;
+    return nodes.map((node) => ({
+        githubId: node.databaseId,
+        number: node.number,
+        title: node.title,
+        body: node.body || null,
+        state: node.state === "OPEN" ? "open" : "closed",
+        author: {
+            login: node.author?.login ?? null,
+            avatarUrl: node.author?.avatarUrl ?? null,
+        },
+        labels: node.labels.nodes.map((label) => ({ name: label.name })),
+        comments: node.comments.totalCount ?? 0,
+        createdAtGithub: node.createdAt,
+        updatedAtGithub: node.updatedAt,
+        closedAt: node.closedAt,
+        url: node.url,
+    }));
 }

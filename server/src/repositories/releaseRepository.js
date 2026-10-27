@@ -1,11 +1,12 @@
 import Release from "../models/release.js";
+import { bulkUpsert } from "./utils/bulkUpsert.js";
 
 export {
     create,
     findByGithubId,
     findByRepositoryId,
-    createMany,
-    findExistingGithubIds,
+    upsertMany,
+    deleteByRepositoryId,
 };
 
 async function create(releaseData) {
@@ -19,33 +20,17 @@ async function findByGithubId(repositoryId, githubId) {
     }).lean();
 }
 
-async function findByRepositoryId(repositoryId) {
+async function findByRepositoryId(repositoryId, projection = null) {
     return await Release.find({
         repositoryId,
-    }).lean();
+    }, projection).lean();
 }
 
-async function createMany(releaseData) {
-    return await Release.insertMany(releaseData, {
-        ordered: false,
-    });
+// drafts get published and prereleases promoted, so existing ones are refreshed
+async function upsertMany(releases) {
+    return await bulkUpsert(Release, releases, ["repositoryId", "githubId"]);
 }
 
-async function findExistingGithubIds(repositoryId, githubIds) {
-    const releases = await Release.find(
-        {
-            repositoryId,
-            githubId: {
-                $in: githubIds,
-            },
-        },
-        {
-            githubId: 1,
-            _id: 0,
-        }
-    ).lean();
-
-    return new Set(
-        releases.map(release => release.githubId)
-    );
+async function deleteByRepositoryId(repositoryId) {
+    return await Release.deleteMany({ repositoryId });
 }

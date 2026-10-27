@@ -42,8 +42,8 @@ function calculateReleases(releases, now = new Date()) {
     return {
         totalReleases,
         publishedReleases: publishedReleases.length,
-        draftReleases,
-        prereleases,
+        draftReleases: draftReleases.length,
+        prereleases: prereleases.length,
         releasesLast30Days,
         releasesLast90Days,
         averageReleaseIntervalDays: Number(averageReleaseInterval.toFixed(2)),

@@ -1,5 +1,5 @@
 import Router from "express";
-import { 
+import {
     handleImportRepository,
     getRepositoryData,
     getRepositoryById,
@@ -13,9 +13,12 @@ import {
     importPullRequestReviews,
     getSyncStatus
 } from "../controllers/repositoryController.js";
+import { requireAuth } from "../middleware/auth.js";
 
 
 const repositoryRouter = Router();
+
+repositoryRouter.use(requireAuth);
 
 repositoryRouter.post("/import", handleImportRepository);
 repositoryRouter.get("/", getRepositoryData);

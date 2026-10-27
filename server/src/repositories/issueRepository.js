@@ -1,11 +1,12 @@
 import Issue from "../models/issue.js";
+import { bulkUpsert } from "./utils/bulkUpsert.js";
 
 export {
     create,
     findByGithubId,
     findByRepositoryId,
-    createMany,
-    findExistingGithubIds,
+    upsertMany,
+    deleteByRepositoryId,
 };
 
 async function create(issueData) {
@@ -19,33 +20,17 @@ async function findByGithubId(repositoryId, githubId) {
     }).lean();
 }
 
-async function findByRepositoryId(repositoryId) {
+async function findByRepositoryId(repositoryId, projection = null) {
     return await Issue.find({
         repositoryId,
-    }).lean();
+    }, projection).lean();
 }
 
-async function createMany(issueData) {
-    return await Issue.insertMany(issueData, {
-        ordered: false,
-    });
+// issues get closed, reopened and commented on, so existing ones are refreshed
+async function upsertMany(issues) {
+    return await bulkUpsert(Issue, issues, ["repositoryId", "githubId"]);
 }
 
-async function findExistingGithubIds(repositoryId, githubIds) {
-    const issues = await Issue.find(
-        {
-            repositoryId,
-            githubId: {
-                $in: githubIds,
-            },
-        },
-        {
-            githubId: 1,
-            _id: 0,
-        }
-    ).lean();
-
-    return new Set(
-        issues.map(issue => issue.githubId)
-    );
+async function deleteByRepositoryId(repositoryId) {
+    return await Issue.deleteMany({ repositoryId });
 }

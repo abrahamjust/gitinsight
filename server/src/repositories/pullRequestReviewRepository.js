@@ -1,11 +1,12 @@
 import PullRequestReview from "../models/pullRequestReview.js";
+import { bulkUpsert } from "./utils/bulkUpsert.js";
 
 export {
     create,
     findByGithubId,
     findByRepositoryId,
-    createMany,
-    findExistingGithubIds,
+    upsertMany,
+    deleteByRepositoryId,
 }
 
 async function create(reviewData) {
@@ -19,29 +20,17 @@ async function findByGithubId(repositoryId, githubId) {
     }).lean();
 }
 
-async function findByRepositoryId(repositoryId) {
+async function findByRepositoryId(repositoryId, projection = null) {
     return PullRequestReview.find({
         repositoryId,
-    }).lean();
+    }, projection).lean();
 }
 
-async function createMany(reviewData) {
-    return PullRequestReview.insertMany(reviewData, {
-        ordered: false,
-    });
+// reviews can be dismissed after submission, so existing ones are refreshed
+async function upsertMany(reviews) {
+    return bulkUpsert(PullRequestReview, reviews, ["repositoryId", "githubId"]);
 }
 
-async function findExistingGithubIds(repositoryId, githubIds) {
-    const reviews = await PullRequestReview.find(
-    {
-        repositoryId,
-        githubId: { $in: githubIds },
-    },
-    {
-        githubId: 1,
-        _id: 0,
-    }
-    ).lean();
-
-    return new Set(reviews.map((review) => review.githubId));
+async function deleteByRepositoryId(repositoryId) {
+    return PullRequestReview.deleteMany({ repositoryId });
 }

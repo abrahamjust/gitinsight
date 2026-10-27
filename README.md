@@ -175,8 +175,10 @@ The project demonstrates full-stack software engineering concepts including REST
 
 - React
 - Vite
-- Tailwind CSS
-- Recharts / Chart.js
+- React Router
+- Plain CSS with design tokens (light and dark themes)
+- Custom SVG charts
+- Lucide icons
 - Axios
 
 ## Development
@@ -406,14 +408,14 @@ cd gitinsight
 ### Install backend dependencies
 
 ```bash
-cd backend
+cd server
 npm install
 ```
 
 ### Install frontend dependencies
 
 ```bash
-cd ../frontend
+cd ../client
 npm install
 ```
 
@@ -421,7 +423,7 @@ npm install
 
 ## Environment Variables
 
-Create a `.env` file inside the backend directory.
+Create a `.env` file inside the `server` directory.
 
 ```env
 SERVER_PORT=3000
@@ -435,7 +437,14 @@ SESSION_SECRET=your_session_secret
 GITHUB_TOKEN=your_github_personal_access_token
 
 GEMINI_API_KEY=your_gemini_api_key
+
+# Optional
+NODE_ENV=development
+# newest N commits / PRs / issues / releases fetched per sync (0 = no cap)
+GITHUB_MAX_ITEMS_PER_RESOURCE=5000
 ```
+
+`GITHUB_MAX_ITEMS_PER_RESOURCE` keeps very large repositories from using up the GitHub rate limit. Items are fetched newest first, so the cap keeps the most recent history.
 
 > **Important:** Never expose `GITHUB_TOKEN`, `GEMINI_API_KEY`, or `SESSION_SECRET` in the frontend.
 
@@ -463,7 +472,7 @@ redis-server
 
 ## Run the Backend
 
-From the backend directory:
+From the `server` directory:
 
 ```bash
 npm run dev
@@ -476,18 +485,20 @@ npm run dev
 The BullMQ worker runs as a separate process.
 
 ```bash
-node src/workers/repositorySync.worker.js
+npm run worker
 ```
 
 ---
 
 ## Run the Frontend
 
-From the frontend directory:
+From the `client` directory:
 
 ```bash
 npm run dev
 ```
+
+The Vite dev server proxies `/api/*` to the backend on `http://localhost:3000`, so the session cookie stays same-origin and no CORS setup is needed. To use a different backend address, set `VITE_API_TARGET` (for example `VITE_API_TARGET=http://localhost:4000 npm run dev`).
 
 ---
 

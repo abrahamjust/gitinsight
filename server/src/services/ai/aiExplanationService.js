@@ -1,11 +1,13 @@
 import { GoogleGenAI } from "@google/genai";
 
+import { env } from "../../config/env.js";
 import { repositoryExplanationPrompt } from "./prompts/repositoryExplanationPrompt.js";
 
 export { generateRepositoryExplanation };
 
+// read through env.js so dotenv has loaded before the key is used
 const ai = new GoogleGenAI({
-    apiKey: process.env.GEMINI_API_KEY,
+    apiKey: env.GEMINI_API_KEY,
 });
 
 const responseSchema = {

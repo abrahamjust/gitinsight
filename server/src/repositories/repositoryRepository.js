@@ -1,8 +1,9 @@
 import Repository from "../models/repository.js";
 
-export { 
+export {
     create,
     findByGithubId,
+    findByGithubIdAndUserId,
     findByUserId,
     updateByGithubId,
     deleteByGithubId,
@@ -20,8 +21,12 @@ async function findByGithubId(githubId) {
     return await Repository.findOne({ githubId }).lean();
 }
 
+async function findByGithubIdAndUserId(githubId, userId) {
+    return await Repository.findOne({ githubId, userId }).lean();
+}
+
 async function findByUserId(userId) {
-    return await Repository.find({ userId }).lean();
+    return await Repository.find({ userId }).sort({ createdAt: -1 }).lean();
 }
 
 async function updateByGithubId(githubId, updateData) {

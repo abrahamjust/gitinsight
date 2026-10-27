@@ -23,9 +23,10 @@ const issueSchema = new mongoose.Schema(
             required: true,
         },
 
+        // plenty of issues are opened with an empty body
         body: {
             type: String,
-            required: true,
+            default: null,
         },
 
         state: {

@@ -1,11 +1,13 @@
 import PullRequest from "../models/pullRequest.js";
+import { bulkUpsert } from "./utils/bulkUpsert.js";
 
 export {
     create,
     findByGithubId,
     findByRepositoryId,
-    createMany,
-    findExistingGithubIds,
+    findIdsByGithubIds,
+    upsertMany,
+    deleteByRepositoryId,
 };
 
 async function create(pullRequestData) {
@@ -19,19 +21,14 @@ async function findByGithubId(repositoryId, githubId) {
     }).lean();
 }
 
-async function findByRepositoryId(repositoryId) {
+async function findByRepositoryId(repositoryId, projection = null) {
     return await PullRequest.find({
         repositoryId,
-    }).lean();
+    }, projection).lean();
 }
 
-async function createMany(pullRequestData) {
-    return await PullRequest.insertMany(pullRequestData, {
-        ordered: false,
-    });
-}
-
-async function findExistingGithubIds(repositoryId, githubIds) {
+// githubId -> MongoDB _id, used to link reviews to their pull request
+async function findIdsByGithubIds(repositoryId, githubIds) {
     const pullRequests = await PullRequest.find(
         {
             repositoryId,
@@ -39,11 +36,19 @@ async function findExistingGithubIds(repositoryId, githubIds) {
         },
         {
             githubId: 1,
-            _id: 0,
         }
     ).lean();
 
-    return new Set(
-        pullRequests.map(pullRequest => pullRequest.githubId)
+    return new Map(
+        pullRequests.map(pullRequest => [pullRequest.githubId, pullRequest._id])
     );
+}
+
+// PRs get merged, closed and edited, so existing ones are refreshed
+async function upsertMany(pullRequests) {
+    return await bulkUpsert(PullRequest, pullRequests, ["repositoryId", "githubId"]);
+}
+
+async function deleteByRepositoryId(repositoryId) {
+    return await PullRequest.deleteMany({ repositoryId });
 }
